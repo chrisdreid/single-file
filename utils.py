@@ -1,4 +1,4 @@
-# single_file/utils.py
+import re
 from pathlib import Path
 from typing import Union
 
@@ -90,3 +90,25 @@ def format_path_for_output(path: Union[str, Path], base_path: Union[str, Path],
     except ValueError:
         # If we can't make it relative, return absolute
         return str(path)
+    
+def should_include_path(analyzer, path: Path, is_dir: bool = False) -> bool:
+    """
+    Determine if a path should be included based on our filtering criteria.
+    This method checks directories against directory patterns and files against
+    file patterns, ensuring consistent filtering throughout the output.
+    
+    Args:
+        path: The path to check for inclusion
+        is_dir: Whether this path is a directory
+        
+    Returns:
+        True if the path should be included, False if it should be ignored
+    """
+    if is_dir and analyzer.args.pattern_ignore_directories:
+        for pattern in analyzer.args.pattern_ignore_directories:
+            try:
+                if re.search(pattern, str(path.name)):
+                    return False
+            except re.error:
+                print(f"Warning: Invalid regex pattern '{pattern}'")
+    return True

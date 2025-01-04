@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import TextIO
 from single_file.core import OutputPlugin
-from single_file.utils import read_file_with_encoding_gymnastics, format_path_for_output
+from single_file.utils import format_path_for_output, should_include_path
 
 class DefaultOutputPlugin(OutputPlugin):
     """
@@ -62,8 +62,8 @@ class DefaultOutputPlugin(OutputPlugin):
         indent = '    ' * level
         
         # First check if this directory itself should be included
-        if not self._should_include_path(actual_path, is_dir=True):
-            return  # Skip this directory entirely
+        if not should_include_path(self.analyzer, actual_path, is_dir=True):
+            return
             
         # Write this directory's name
         name = Path(display_path).name
@@ -77,7 +77,7 @@ class DefaultOutputPlugin(OutputPlugin):
             for item in items:
                 if item.is_dir():
                     # Only process directories that aren't ignored
-                    if self._should_include_path(item, is_dir=True):
+                    if should_include_path(self.analyzer,item, is_dir=True):
                         item_display = format_path_for_output(
                             item,
                             actual_path,
@@ -89,7 +89,7 @@ class DefaultOutputPlugin(OutputPlugin):
             for item in items:
                 if not item.is_dir():
                     # Only show files that aren't ignored
-                    if self._should_include_path(item, is_dir=False):
+                    if should_include_path(self.analyzer,item, is_dir=False):
                         f.write(f"{indent}    {item.name}\n")
                         
         except PermissionError:
@@ -110,32 +110,11 @@ class DefaultOutputPlugin(OutputPlugin):
             
             # Filter directories in-place
             dirs[:] = [d for d in dirs 
-                      if self._should_include_path(root_path / d, is_dir=True)]
+                      if should_include_path(self.analyzer, root_path / d, is_dir=True)]
             
             # Yield matching files
             for filename in files:
                 file_path = root_path / filename
-                if self._should_include_path(file_path):
+                if should_include_path(self.analyzer, file_path):
                     yield file_path
 
-    def _should_include_path(self, path: Path, is_dir: bool = False) -> bool:
-        """
-        Determine if a path should be included based on our filtering criteria.
-        This method checks directories against directory patterns and files against
-        file patterns, ensuring consistent filtering throughout the output.
-        
-        Args:
-            path: The path to check for inclusion
-            is_dir: Whether this path is a directory
-            
-        Returns:
-            True if the path should be included, False if it should be ignored
-        """
-        if is_dir and self.analyzer.args.pattern_ignore_directories:
-            for pattern in self.analyzer.args.pattern_ignore_directories:
-                try:
-                    if re.search(pattern, str(path.name)):
-                        return False
-                except re.error:
-                    print(f"Warning: Invalid regex pattern '{pattern}'")
-        return True
