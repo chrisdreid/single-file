@@ -4,10 +4,8 @@ import inspect
 import sys
 from pathlib import Path
 from typing import Dict, Type
-# from datetime import datetime
-# import hashlib
 from single_file.core import OutputPlugin, BaseArguments, FileCollector
-import argparse
+
 
 class CodebaseAnalyzer:
     """
@@ -163,55 +161,3 @@ class CodebaseAnalyzer:
         )
         self.stats['recently_modified'].sort(key=lambda x: x[1], reverse=True)
         self.stats['recently_modified'] = self.stats['recently_modified'][:10]
-
-def main():
-    """
-    Main entry point for the codebase analysis tool.
-    """
-    print("Starting codebase analyzer...")  # Debug output
-    
-    # Create argument parser
-    parser = argparse.ArgumentParser(
-        description='Analyze and document your codebase with multiple output formats'
-    )
-    
-    print("Adding core arguments...")  # Debug output
-    # Add core arguments from BaseArguments
-    BaseArguments.add_core_arguments(parser)
-    
-    # Create dummy args and analyzer to get plugin list
-    print("Creating initial analyzer for plugin loading...")  # Debug output
-    dummy_args = BaseArguments()
-    
-    try:
-        analyzer = CodebaseAnalyzer(dummy_args)
-        
-        # Let each plugin add its own arguments
-        print(f"Found plugins: {list(analyzer.plugins.keys())}")  # Debug output
-        for plugin in analyzer.plugins.values():
-            plugin.add_arguments(parser)
-        
-        # Parse actual arguments
-        print("Parsing command line arguments...")  # Debug output
-        parsed_args = parser.parse_args()
-        
-        # Convert to BaseArguments instance
-        args = BaseArguments.from_namespace(parsed_args)
-        
-        # Create and run the analyzer with the real arguments
-        print("Creating analyzer with parsed arguments...")  # Debug output
-        analyzer = CodebaseAnalyzer(args)
-        
-        print("Generating outputs...")  # Debug output
-        analyzer.generate_outputs()
-        
-        print("Analysis complete.")  # Debug output
-        
-    except Exception as e:
-        print(f"Error during execution: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()

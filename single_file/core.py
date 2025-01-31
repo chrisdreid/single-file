@@ -41,7 +41,7 @@ class BaseArguments:
 
 class FileCollector:
     """Centralized utility for consistent file collection and filtering."""
-    def __init__(self, analyzer: 'CodebaseAnalyzer'):
+    def __init__(self, analyzer: utils.CODEBASE_ANALYZER):
         self.analyzer = analyzer
         self.args = analyzer.args
         
@@ -103,7 +103,7 @@ class OutputPlugin(ABC):
     """Base class for output plugins."""
     format_name: str = None
     
-    def __init__(self, analyzer: 'CodebaseAnalyzer'):
+    def __init__(self, analyzer: utils.CODEBASE_ANALYZER):
         self.analyzer = analyzer
         self.args = analyzer.args
 
