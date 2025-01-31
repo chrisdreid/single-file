@@ -1,6 +1,6 @@
 {
-  "paths": ["single_file_dev01"],
-  "output_file": "tmp_single-file.json",
+  "paths": ["./"],
+  "output_file": "single-file-output.json",
   "exclude_dirs": [".git", "__pycache__"],
-  "extensions": ["py", "md"]
+  "extensions": ["py", "json"]
 }
