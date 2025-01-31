@@ -84,7 +84,7 @@ single_file/
    ```bash
    pip install -e .
    ```
-   This will register the console script (once renamed) so you can run it with a command like `flattenx` (or your chosen entry point) from anywhere on your system.
+   This will register the console script (once renamed) so you can run it with a command `single_file` (or your chosen entry point) from anywhere on your system. It is especially important when you install our vscode extension (coming really soon).
 
 
 ### Option 2: Just Clone and Run
