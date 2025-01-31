@@ -165,7 +165,7 @@ class MarkdownOutputPlugin(OutputPlugin):
 
             f.write(f"### <a id='{anchor}'></a>{rel_str}\n\n")
             f.write("**File Information:**\n\n")
-            f.write(f"- **Size**: {self._format_size(file_info['size'])}\n")
+            f.write(f"- **Bytes**: {self._format_size(file_info['size'])}\n")
             f.write(
                 f"- **Modified**: {file_info['modified'].strftime('%Y-%m-%d %H:%M:%S')}\n"
             )
