@@ -2,6 +2,28 @@ import re
 from pathlib import Path
 from typing import Union
 
+DEFAULT_IGNORE_PATTERNS = {
+            'directories': [
+                r'^\.git$',
+                r'^\.svn$',
+                r'^\.hg$',
+                r'^__pycache__$',
+                r'^\.pytest_cache$',
+                r'^node_modules$',
+                r'^\.[^/]*$'
+            ],
+            'files': [
+                r'.*\.pyc$',
+                r'.*\.pyo$',
+                r'.*\.pyd$',
+                r'.*~$',
+                r'\.DS_Store$',
+                r'Thumbs\.db$'
+            ]
+        }
+
+CODEBASE_ANALYZER = 'CodebaseAnalyzer'
+
 def read_file_with_encoding_gymnastics(file_path):
     """
     Attempts to read a file by trying different encodings in a prioritized order.
