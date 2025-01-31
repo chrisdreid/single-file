@@ -202,10 +202,10 @@ python single_file/singlefile.py \
 Sample `python-project.json`:
 ```json
 {
-  "paths": ["single_file"],
-  "output_file": "tmp_single-file.json",
+  "paths": ["./"],
+  "output_file": "single-file-output.json",
   "exclude_dirs": [".git", "__pycache__"],
-  "extensions": ["py", "md"]
+  "extensions": ["py", "json"]
 }
 ```
 
