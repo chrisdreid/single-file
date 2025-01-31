@@ -1,3 +1,5 @@
+![Banner](./images/single-file_1280x317.png)
+
 # SingleFile: A Powerful Code Flattening and Analysis Tool
 
 SingleFile is a Python tool that **flattens** your project’s code into one or more coherent, self-contained representations. It’s designed primarily for sharing with AI language models (like ChatGPT) or for generating human-readable documentation. SingleFile also provides **analysis** features such as file statistics, directory scanning, and metadata plugins.
