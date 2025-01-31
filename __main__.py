@@ -83,9 +83,9 @@ def main(args=None):
         description="Single File Dev01 CLI - Scans folders and files.",
         add_help=False,  # We'll add help manually to prevent duplication
     )
-    phase1_parser.add_argument(
-        "-h", "--help", action="help", help="Show this help message and exit"
-    )
+    # phase1_parser.add_argument(
+    #     "-h", "--help", action="help", help="Show this help message and exit"
+    # )
     phase1_parser.add_argument(
         "--disable-plugin",
         nargs="*",
@@ -125,9 +125,9 @@ def main(args=None):
         plugin_cls.add_arguments(phase2_parser)
 
     # Re-add help to include plugin arguments
-    # phase2_parser.add_argument(
-    #     "-h", "--help", action="help", help="Show this help message and exit"
-    # )
+    phase2_parser.add_argument(
+        "-h", "--help", action="help", help="Show this help message and exit"
+    )
 
     # Parse all arguments with the full parser
     try:
