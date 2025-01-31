@@ -14,6 +14,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_METADATA_FIELDS = ["filepath", "size", "modified", "extension"]
+
 
 class BaseArguments:
     """Base class containing common arguments shared across all plugins."""
@@ -33,6 +35,9 @@ class BaseArguments:
         self.exclude_extensions: Optional[List[str]] = None
         self.show_guide: bool = False
         self.replace_invalid_chars: bool = False
+        # New for incremental metadata
+        self.metadata_add: List[str] = []
+        self.metadata_remove: List[str] = []
 
     @classmethod
     def add_core_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -103,6 +108,24 @@ class BaseArguments:
             "--replace-invalid-chars",
             action="store_true",
             help="Replace weird characters instead of giving up",
+        )
+        # New incremental metadata flags:
+        parser.add_argument(
+            "--metadata-add",
+            nargs="*",
+            default=[],
+            help="Add one or more metadata fields (e.g., 'content', 'md5')"
+        )
+        parser.add_argument(
+            "--metadata-remove",
+            nargs="*",
+            default=[],
+            help="Remove one or more default metadata fields"
+        )
+        parser.add_argument(
+            "--force-binary-content",
+            action="store_true",
+            help="Include base64-encoded data for binary files (otherwise skip them)."
         )
 
     @classmethod
@@ -210,68 +233,37 @@ class FileCollector:
 
     def get_file_metadata(self, file_path: Path) -> dict:
         """
-        Analyze a file and gather its metadata and content.
-
-        Args:
-            file_path: Path to the file to analyze
-
-        Returns:
-            dict: A dictionary containing file metadata and content
+        Analyze a file and gather metadata. 
+        Binary files get a placeholder in 'content'.
+        Text files store actual content. 
         """
         metadata = {}
         metadata["path"] = file_path.resolve()
         metadata["size"] = file_path.stat().st_size
         metadata["modified"] = datetime.fromtimestamp(file_path.stat().st_mtime)
-        metadata["extension"] = file_path.suffix[1:] if file_path.suffix else ""
-        metadata["is_binary"] = self._is_binary(file_path)
+        extension = file_path.suffix[1:] if file_path.suffix else ""
+        metadata["extension"] = extension
 
-        if not metadata["is_binary"] and not getattr(self.analyzer.args, 'json_no_content', False):
-            metadata["content"] = read_file_with_encoding_gymnastics(file_path)
-            metadata["line_count"] = len(metadata["content"].splitlines())
-
-        # Optionally, add a hash
-        metadata["hash"] = self._hash_file(file_path)
+        # Decide if it's binary
+        if self._is_binary(file_path):
+            # Placeholder
+            metadata["content"] = "**binary data found: skipped**"
+        else:
+            # Real text
+            text = read_file_with_encoding_gymnastics(file_path)
+            metadata["content"] = text
+            metadata["line_count"] = len(text.splitlines())
 
         return metadata
 
     def _is_binary(self, file_path: Path) -> bool:
-        """
-        Determine if a file is binary.
-
-        Args:
-            file_path: Path to the file to check
-
-        Returns:
-            bool: True if the file is binary, False otherwise
-        """
         try:
             with open(file_path, "rb") as f:
                 chunk = f.read(1024)
-                if b"\0" in chunk:
-                    return True
+                return b"\0" in chunk
         except Exception as e:
             logger.warning(f"Could not determine if {file_path} is binary: {e}")
         return False
-
-    def _hash_file(self, file_path: Path) -> str:
-        """
-        Compute the MD5 hash of a file.
-
-        Args:
-            file_path: Path to the file to hash
-
-        Returns:
-            str: MD5 hash of the file
-        """
-        hash_md5 = hashlib.md5()
-        try:
-            with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-        except Exception as e:
-            logger.warning(f"Could not compute hash for {file_path}: {e}")
-            return ""
-        return hash_md5.hexdigest()
 
 
 class OutputPlugin(ABC):

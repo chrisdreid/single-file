@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Dict, Type, Set, List
 import logging
 
-from single_file.core import OutputPlugin, BaseArguments, FileCollector
+from single_file.core import OutputPlugin, BaseArguments, FileCollector, DEFAULT_METADATA_FIELDS
+from single_file.utils import format_path_for_output
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class CodebaseAnalyzer:
             disabled_plugins: Set of plugin names to disable
         """
         self.args = args
+        self.disabled_plugins = disabled_plugins or set()
         self.file_info_cache: Dict[Path, dict] = {}
         self.plugins: Dict[str, Type[OutputPlugin]] = {}
         self.extension_plugin_map: Dict[str, List[Type[OutputPlugin]]] = {}
@@ -39,133 +41,134 @@ class CodebaseAnalyzer:
         # Initialize file collector BEFORE loading plugins
         self.file_collector = FileCollector(self)
 
-        # Load plugins after file collector is initialized
-        self._load_plugins(disabled_plugins or set())
+        # Load metadata plugins
+        self.metadata_plugins = self._discover_metadata_plugins()
 
-    def _load_plugins(self, disabled_plugins: Set[str]) -> None:
-        """
-        Dynamically load output plugins from the plugins directory, excluding disabled ones.
+        # After file_collector is ready, we can do a separate discover for output if desired,
+        # but in this architecture, output plugins are discovered in __main__.py
 
-        Args:
-            disabled_plugins: Set of plugin names to disable
+    def _discover_metadata_plugins(self) -> Dict[str, Type]:
         """
-        plugins_dir = Path(__file__).parent / "plugins"
-        if not plugins_dir.exists():
-            logger.warning(f"Plugins directory does not exist at {plugins_dir}")
-            return
+        Dynamically load metadata plugins from single_file/plugins/metadata.
+        """
+        from single_file.plugins.metadata.plugin_base import MetadataPlugin
+
+        plugins = {}
+        metadata_dir = Path(__file__).parent / "plugins" / "metadata"
+        if not metadata_dir.exists():
+            logger.warning(f"Metadata plugins directory does not exist at {metadata_dir}")
+            return plugins
 
         # Add parent directory to Python path if needed
-        project_root = plugins_dir.parent.parent
+        project_root = metadata_dir.parent.parent
         if str(project_root) not in sys.path:
             sys.path.insert(0, str(project_root))
 
-        logger.info("Scanning for plugins in: %s", plugins_dir)
-        # Import each Python file in the plugins directory
-        for plugin_file in plugins_dir.glob("*.py"):
+        logger.info("Scanning for metadata plugins in: %s", metadata_dir)
+        for plugin_file in metadata_dir.glob("*.py"):
             if plugin_file.name.startswith("_"):
                 logger.debug("Skipping private file: %s", plugin_file)
                 continue
-
             try:
-                # Import using absolute import
-                module_name = f"single_file.plugins.{plugin_file.stem}"
+                module_name = f"single_file.plugins.metadata.{plugin_file.stem}"
                 module = importlib.import_module(module_name)
 
-                # Find all OutputPlugin subclasses in the module
                 for name, obj in inspect.getmembers(module):
                     if (
                         inspect.isclass(obj)
-                        and issubclass(obj, OutputPlugin)
-                        and obj is not OutputPlugin
-                        and obj.format_name
-                        and hasattr(obj, "supported_extensions")
-                        and obj.supported_extensions
+                        and issubclass(obj, MetadataPlugin)
+                        and obj is not MetadataPlugin
+                        and hasattr(obj, "metadata_name")
                     ):
-                        if obj.format_name in disabled_plugins:
-                            logger.info(
-                                f"Plugin '{obj.format_name}' is disabled and will not be loaded."
-                            )
-                            continue
-                        self.plugins[obj.format_name] = obj
-                        logger.info(f"Loaded plugin for format: {obj.format_name}")
-
-                        # Build extension-to-plugin mapping
-                        for ext in obj.supported_extensions:
-                            # Normalize extension format (ensure it starts with dot)
-                            ext_lower = ext.lower()
-                            if not ext_lower.startswith('.'):
-                                ext_lower = '.' + ext_lower
-                            if ext_lower not in self.extension_plugin_map:
-                                self.extension_plugin_map[ext_lower] = []
-                            self.extension_plugin_map[ext_lower].append(obj)
-                            logger.debug("Mapped extension %s to plugin %s", ext_lower, obj.format_name)
+                        plugins[obj.metadata_name] = obj
+                        logger.info(f"Loaded metadata plugin: {obj.metadata_name}")
 
             except Exception as e:
-                logger.error(f"Error loading plugin {plugin_file}: {e}")
+                logger.error(f"Error loading metadata plugin {plugin_file}: {e}")
+        return plugins
 
     def generate_outputs(self) -> None:
         """
-        Generate all requested output formats using appropriate plugins.
+        Generate all requested output formats. If --formats is empty or 'default', 
+        we do a single output by extension. Otherwise, if user sets multiple 
+        formats, we treat the --output-file as a base name and generate one file 
+        per format, each with the plugin’s extension.
         """
         output_path = Path(self.args.output_file)
-        output_extension = output_path.suffix.lower()
-        
-        logger.info("Generating output for path: %s", output_path)
-        logger.info("Detected extension: %s", output_extension)
-        logger.info("Available plugins: %s", list(self.plugins.keys()))
-        logger.info("Mapped extensions: %s", list(self.extension_plugin_map.keys()))
+        formats_arg = (self.args.formats or "").strip().lower()
 
-        # If the user specified multiple formats, handle each accordingly
-        if self.args.formats and self.args.formats.lower() != "default":
-            requested_formats = [fmt.strip().lower() for fmt in self.args.formats.split(",")]
-            for format_name in requested_formats:
-                if format_name not in self.plugins:
-                    logger.warning(f"No plugin found for format '{format_name}'")
-                    continue
-                try:
-                    plugin = self.plugins[format_name]
-                    # Use the first supported extension from the plugin
-                    ext = plugin.supported_extensions[0]
-                    formatted_output_path = output_path.with_suffix(ext)
-                    plugin(self).generate_output(formatted_output_path)
-                    logger.info(f"Generated {format_name} output at {formatted_output_path}")
-                except Exception as e:
-                    logger.error(f"Error generating {format_name} output: {e}")
-        else:
-            # Use the output file's extension to select the plugin
+        logger.info(f"Generating outputs for {output_path}")
+        logger.info(f"formats_arg = '{formats_arg}'")
+
+        # CASE 1: No explicit --formats or 'default' => single output by extension
+        if not formats_arg or formats_arg == "default":
             try:
-                plugin = self._get_plugin_for_extension(output_extension)
-                plugin(self).generate_output(output_path)
-                logger.info(f"Generated output at {output_path}")
+                chosen_extension = output_path.suffix.lower()
+                plugin_cls = self._get_plugin_for_extension(chosen_extension)
+                plugin_inst = plugin_cls(self)
+                plugin_inst.generate_output(output_path)
+                logger.info(f"Generated output using {plugin_cls.format_name} at {output_path}")
             except ValueError as ve:
                 logger.error(ve)
             except Exception as e:
                 logger.error(f"Error generating output: {e}")
 
+            return
+
+        # CASE 2: Explicit --formats => possibly multiple formats
+        requested_formats = [fmt.strip() for fmt in formats_arg.split(",") if fmt.strip()]
+        if not requested_formats:
+            # If --formats is empty after splitting (e.g. user typed `--formats ,`)
+            # fallback to single extension logic:
+            try:
+                plugin_cls = self._get_plugin_for_extension(output_path.suffix.lower())
+                plugin_inst = plugin_cls(self)
+                plugin_inst.generate_output(output_path)
+            except Exception as e:
+                logger.error(f"Error generating fallback output: {e}")
+            return
+
+        # If there's exactly one requested format, we can also preserve the extension
+        # from --output-file if you'd rather do that. But since you said "if you put
+        # formats, then it uses the base of outputfile", let's unify the logic
+        # so that a single format is also appended.
+        #
+        # We'll handle multiple or single the same: treat output_file as a BASE
+        # and for each format plugin, append the plugin’s extension.
+
+        # We intentionally strip off any existing extension so we don't get
+        # filename.json.json, etc. Then each plugin sets the extension.
+        base_name = output_path.with_suffix("")  # removes any existing .ext
+
+        for format_name in requested_formats:
+            if format_name not in self.plugins:
+                logger.warning(f"No plugin found for format '{format_name}'")
+                continue
+
+            plugin_cls = self.plugins[format_name]
+            ext = plugin_cls.supported_extensions[0]  # Typically `.json`, `.md`, etc.
+            out_path_for_plugin = base_name.with_suffix(ext)
+
+            try:
+                plugin_inst = plugin_cls(self)
+                plugin_inst.generate_output(out_path_for_plugin)
+                logger.info(f"Generated '{format_name}' output => {out_path_for_plugin}")
+            except Exception as e:
+                logger.error(f"Error generating {format_name} output: {e}")
+
+
     def _get_plugin_for_extension(self, extension: str) -> Type[OutputPlugin]:
         """
         Get the appropriate plugin for a file extension, handling multiple matching plugins.
-
-        Args:
-            extension: The file extension (with or without leading dot)
-
-        Returns:
-            OutputPlugin class that handles the extension
-
-        Raises:
-            ValueError: If no plugin is found or if multiple plugins match without a format specified
         """
-        # Normalize the extension (ensure it starts with dot and convert to lowercase)
         ext_lower = extension.lower()
         if not ext_lower.startswith('.'):
             ext_lower = '.' + ext_lower
 
         logger.debug("Looking for plugin for extension: %s", ext_lower)
         logger.debug("Available extensions: %s", list(self.extension_plugin_map.keys()))
-        
-        # Get all plugins that support this extension
-        matching_plugins = self.extension_plugin_map.get(ext_lower, [])
 
+        matching_plugins = self.extension_plugin_map.get(ext_lower, [])
         if not matching_plugins:
             raise ValueError(
                 f"No plugin available to handle the '{extension}' extension. "
@@ -175,14 +178,14 @@ class CodebaseAnalyzer:
         if len(matching_plugins) == 1:
             return matching_plugins[0]
 
-        # Multiple plugins match - check if a specific format was requested
+        # If multiple plugins match, check if a specific format was requested
         if self.args.formats and self.args.formats.lower() != "default":
             requested_formats = [fmt.strip().lower() for fmt in self.args.formats.split(",")]
             for plugin in matching_plugins:
                 if plugin.format_name.lower() in requested_formats:
                     return plugin
 
-        # Multiple plugins match but no specific format was requested
+        # If still ambiguous, raise an error
         plugin_names = [p.format_name for p in matching_plugins]
         raise ValueError(
             f"Multiple plugins ({', '.join(plugin_names)}) can handle the '{extension}' extension. "
@@ -192,19 +195,43 @@ class CodebaseAnalyzer:
     def analyze_file(self, file_path: Path) -> dict:
         """
         Analyze a single file and cache its information.
-
-        Args:
-            file_path: Path to the file to analyze
-
-        Returns:
-            dict: File metadata and analysis results
         """
         if file_path in self.file_info_cache:
             return self.file_info_cache[file_path]
 
         try:
+            # Step A: gather basic file info
             metadata = self.file_collector.get_file_metadata(file_path)
+
+            # Update stats
             self._update_stats(metadata)
+
+            # Step B: apply incremental metadata logic
+            final_fields = set(DEFAULT_METADATA_FIELDS)
+            for field in self.args.metadata_remove:
+                final_fields.discard(field)
+            for field in self.args.metadata_add:
+                final_fields.add(field)
+
+            # If user removed certain built-ins:
+            if "filepath" not in final_fields:
+                # maybe they prefer just 'filename'? Up to you. For now, remove it.
+                # We'll keep 'path' internally but can omit from final dict if needed
+                pass
+            if "extension" not in final_fields and "extension" in metadata:
+                metadata.pop("extension", None)
+            if "size" not in final_fields and "size" in metadata:
+                metadata.pop("size", None)
+            if "modified" not in final_fields and "modified" in metadata:
+                metadata.pop("modified", None)
+
+            # Step C: Let metadata plugins attach their fields
+            for plugin_name, plugin_cls in self.metadata_plugins.items():
+                if plugin_name in final_fields:
+                    plugin_instance = plugin_cls()
+                    plugin_instance.attach_metadata(metadata)
+
+            # Cache
             self.file_info_cache[file_path] = metadata
             return metadata
 
@@ -212,7 +239,7 @@ class CodebaseAnalyzer:
             if not self.args.ignore_errors:
                 raise
             logger.warning(f"Could not analyze {file_path}: {e}")
-            return None
+            return {}
 
     def _update_stats(self, file_info: dict) -> None:
         """Update the statistics with information from a new file."""
