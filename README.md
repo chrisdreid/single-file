@@ -65,6 +65,9 @@ single_file/
     tests/
         test_basic.py
         test_plugins.py
+    images/
+        single-file_1280x317.png   <-- Banner for repository
+        single-file_1280x640.png   <-- Social Share for repository
 ```
 
 - **setup.py**: Enables installation via `pip install .` within this repo.  
