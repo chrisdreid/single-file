@@ -1,6 +1,5 @@
 {
-  "paths": ["./"],
   "output_file": "single-file-output.json",
   "exclude_dirs": [".git", "__pycache__"],
-  "extensions": ["py", "json"]
+  "extensions": ["py", "md", "yaml","yml","json"]
 }
