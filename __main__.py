@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
 Entry point for SingleFile.
-
-This module delegates execution to the main() function in the
-single_file.singlefile module.
+This module delegates execution to the main() function in single_file.singlefile.
 """
 
 from single_file.singlefile import main

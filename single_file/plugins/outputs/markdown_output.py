@@ -7,7 +7,6 @@ from single_file.utils import format_path_for_output
 class MarkdownOutputPlugin(OutputPlugin):
     """
     Generates Markdown documentation of the codebase.
-    It uses the raw file tree produced by the core.
     """
     format_name = "markdown"
     supported_extensions = [".md"]
@@ -21,7 +20,6 @@ class MarkdownOutputPlugin(OutputPlugin):
         group.add_argument("--md-syntax", action="store_true", help="Add syntax highlighting to file contents")
 
     def generate_output(self, output_path: Path) -> None:
-        # Assume that analyzer.file_tree is already built.
         tree = self.analyzer.file_tree
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("# Codebase Documentation\n\n")
@@ -35,8 +33,11 @@ class MarkdownOutputPlugin(OutputPlugin):
 
     def _format_tree_as_markdown(self, node: dict, indent: int = 0) -> str:
         spacer = "    " * indent
-        # Use the 'filepath' from the node.
-        md = f"{spacer}- `{node.get('filepath', '')}`\n"
+        if node.get("type") == "directory":
+            path_str = node.get("dirpath", node.get("filepath", ""))
+        else:
+            path_str = node.get("filepath", "")
+        md = f"{spacer}- `{path_str}`\n"
         if node.get("type") == "directory" and "children" in node:
             for child in node["children"]:
                 md += self._format_tree_as_markdown(child, indent + 1)

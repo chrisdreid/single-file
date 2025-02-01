@@ -6,8 +6,7 @@ from single_file.core import OutputPlugin
 class JSONOutputPlugin(OutputPlugin):
     """
     Generates a JSON representation of the codebase.
-    All file metadata now uses 'filepath' (relative) instead of 'path'.
-    The output does not include an explicit 'is_binary' flag.
+    The file tree and files are output as flat dictionaries.
     """
     format_name = "json"
     supported_extensions = [".json"]
@@ -22,17 +21,17 @@ class JSONOutputPlugin(OutputPlugin):
 
     def generate_output(self, output_path: Path) -> None:
         data = {
-            "metadata": self._build_metadata(),
+            "tool_metadata": self._build_tool_metadata(),
             "stats": self.analyzer.stats,
             "file_tree": self.analyzer.file_tree,
-            "files": {str(k): v for k, v in self.analyzer.file_info_cache.items()}
+            "files": list(self.analyzer.file_info_cache.values())
         }
         indent = None if getattr(self.args, "json_compact", False) else 2
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=indent, default=str)
         self.analyzer.logger.info(f"JSON output generated at {output_path}")
 
-    def _build_metadata(self) -> dict:
+    def _build_tool_metadata(self) -> dict:
         meta = {
             "generated_at": datetime.now().isoformat(),
             "tool_version": "1.0.0",

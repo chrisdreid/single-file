@@ -23,6 +23,50 @@ from single_file.utils import read_file_with_encoding_gymnastics
 logger = logging.getLogger(__name__)
 DEFAULT_METADATA_FIELDS = ["filepath", "size", "modified", "extension"]
 
+# single_file/core.py
+
+# Define the built-in metadata keys and their defaults.
+# Built-in metadata keys for both files and directories.
+BUILTIN_METADATA = {
+    "filepath": {
+        "default": True,
+        "description": "Relative file path (for files)."
+    },
+    "dirpath": {
+        "default": True,
+        "description": "Relative directory path (for directories)."
+    },
+    "size": {
+        "default": False,
+        "description": "File size in bytes."
+    },
+    "modified": {
+        "default": False,
+        "description": "Last modified timestamp."
+    },
+    "extension": {
+        "default": False,
+        "description": "File extension (for files)."
+    },
+    "line_count": {
+        "default": False,
+        "description": "Number of lines in the file (for files)."
+    },
+    "entry_type": {
+        "default": False,
+        "description": "Entry type for files: 'file'."
+    },
+    "type": {
+        "default": False,
+        "description": "Entry type: 'file' or 'directory'."
+    },
+    "content": {
+        "default": True,
+        "description": "File content (or a message if binary)."
+    }
+}
+
+
 
 class BaseArguments:
     """Base class containing common arguments shared across all plugins."""
@@ -140,7 +184,25 @@ class FileCollector:
                 raise
             logger.warning(f"Error processing {start_path}: {err}")
 
+
+    def get_dir_metadata(self, dir_item: Path) -> dict:
+        # Compute a relative directory path based on the first input path.
+        base = Path(self.args.paths[0]).resolve()
+        try:
+            relative = dir_item.resolve().relative_to(base)
+            dirpath = f"./{relative}" if str(relative) != "." else "."
+        except ValueError:
+            dirpath = str(dir_item.resolve())
+        # For directories, we only return the path and a default type.
+        metadata = {
+            "dirpath": dirpath,
+            "type": "directory"
+        }
+        return metadata
+
+
     def get_file_metadata(self, file_item: Path) -> dict:
+        # Compute the relative filepath based on the first input path.
         base = Path(self.args.paths[0]).resolve()
         try:
             relative = file_item.resolve().relative_to(base)
@@ -153,6 +215,7 @@ class FileCollector:
             "modified": datetime.fromtimestamp(file_item.stat().st_mtime),
             "extension": file_item.suffix[1:] if file_item.suffix else ""
         }
+        # For files, we also compute content and line_count.
         is_bin = self._is_binary(file_item)
         if is_bin:
             if self.args.force_binary_content:
@@ -171,7 +234,6 @@ class FileCollector:
         return metadata
 
 
-
     def _is_binary(self, file_item: Path) -> bool:
         try:
             with open(file_item, "rb") as f:
@@ -181,13 +243,11 @@ class FileCollector:
         return False
 
     def build_file_tree(self, start_path: Path, current_depth: int = 0) -> dict:
-        base = Path(self.analyzer.args.paths[0]).resolve()
-        try:
-            relative = start_path.resolve().relative_to(base)
-            filepath = f"./{relative}" if str(relative) != "." else "."
-        except ValueError:
-            filepath = str(start_path.resolve())
-        node = {"filepath": filepath, "type": "directory" if start_path.is_dir() else "file"}
+        # If the start_path is a directory, use analyze_dir; otherwise, use analyze_file.
+        if start_path.is_dir():
+            node = self.analyzer.analyze_dir(start_path)
+        else:
+            node = self.analyzer.analyze_file(start_path)
         if start_path.is_dir():
             node["children"] = []
             if self.args.depth > 0 and current_depth >= self.args.depth:
@@ -198,10 +258,9 @@ class FileCollector:
                         node["children"].append(self.build_file_tree(child, current_depth + 1))
                     elif child.is_file() and self.should_include_path(child, is_dir=False):
                         metadata = self.analyzer.analyze_file(child)
-                        file_node = {"filepath": metadata.get("filepath"), "type": "file", "metadata": metadata}
-                        node["children"].append(file_node)
+                        node["children"].append(metadata)
             except PermissionError:
-                node["children"].append({"filepath": "<permission denied>", "type": "error"})
+                node["children"].append({"dirpath": "<permission denied>", "type": "error"})
         return node
 
 
