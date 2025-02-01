@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from pathlib import Path
 from single_file.core import OutputPlugin
 
@@ -21,7 +20,7 @@ class JSONOutputPlugin(OutputPlugin):
 
     def generate_output(self, output_path: Path) -> None:
         data = {
-            "tool_metadata": self._build_tool_metadata(),
+            "tool_metadata": self._get_tool_metadata(),
             "stats": self.analyzer.stats,
             "file_tree": self.analyzer.file_tree,
             "files": list(self.analyzer.file_info_cache.values())
@@ -31,10 +30,10 @@ class JSONOutputPlugin(OutputPlugin):
             json.dump(data, f, indent=indent, default=str)
         self.analyzer.logger.info(f"JSON output generated at {output_path}")
 
-    def _build_tool_metadata(self) -> dict:
-        meta = {
-            "generated_at": datetime.now().isoformat(),
-            "tool_version": "1.0.0",
-            "command_args": vars(self.args)
-        }
-        return meta
+    # def _build_tool_metadata(self) -> dict:
+    #     # Centralize the tool metadata by importing from the version module
+    #     return {
+    #         "Tool": version.__tool_name__,
+    #         "Version": version.__version__,
+    #         "Command Args": vars(self.args)
+    #     }

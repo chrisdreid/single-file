@@ -2,7 +2,6 @@ import logging
 from pathlib import Path
 from typing import TextIO
 from single_file.core import OutputPlugin
-from single_file.utils import format_path_for_output
 
 logger = logging.getLogger(__name__)
 
@@ -44,3 +43,11 @@ class DefaultOutputPlugin(OutputPlugin):
             for child in node["children"]:
                 result += self._render_tree(child, indent + 1)
         return result
+    
+    # def _build_tool_metadata(self) -> dict:
+    #     # Centralize the tool metadata by importing from the version module
+    #     return {
+    #         "Tool": version.__tool_name__,
+    #         "Version": version.__version__,
+    #         "Command Args": vars(self.args),
+    #     }

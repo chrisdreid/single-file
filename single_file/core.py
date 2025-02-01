@@ -15,6 +15,7 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, Iterator, List
+from single_file import version  
 import logging
 import base64
 
@@ -309,3 +310,14 @@ class OutputPlugin(ABC):
                 return f"{byte_count:.1f} {unit}"
             byte_count /= 1024
         return f"{byte_count:.1f} PB"
+
+    def _get_tool_metadata(self) -> dict:
+        """
+        Centralize the tool metadata by importing from the version module.
+        This method is now available to all output plugins.
+        """
+        return {
+            "Tool": version.__tool_name__,
+            "Version": version.__version__,
+            "Command Args": vars(self.args)
+        }
