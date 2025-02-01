@@ -1,37 +1,27 @@
-# single_file/plugins/metadata/binary_content.py
-
 import base64
 import logging
-from pathlib import Path
-from typing import Dict, Any
-
+import os
 from single_file.plugins.metadata.plugin_base import MetadataPlugin
 
 logger = logging.getLogger(__name__)
 
 class BinaryContentPlugin(MetadataPlugin):
-    """
-    Converts any file with 'content' == '**binary data found: skipped**'
-    into base64-encoded content, preserving the rest.
-    """
-
     metadata_name = "binary_content"
+    default = False  # Not enabled by default.
+    description = "Base64-encoded binary content (if forced)."
 
-    def attach_metadata(self, file_info: Dict[str, Any]) -> None:
-        content_val = file_info.get("content")
-        if content_val != "**binary data found: skipped**":
-            # It's either text or something else, do nothing
+    def attach_metadata(self, file_info: dict) -> None:
+        # Only proceed if the current content indicates that binary data was skipped.
+        if file_info.get("content") != "**binary file: skipped**":
             return
-
-        # If we get here, it's actually binary => encode it
-        path_obj = file_info.get("path")
-        if not path_obj:
-            return
-
+        base = os.path.abspath(self.analyzer.args.paths[0]) if self.analyzer and self.analyzer.args.paths else "."
+        rel_filepath = file_info.get("filepath", "")
+        if rel_filepath.startswith("./"):
+            rel_filepath = rel_filepath[2:]
+        abs_path = os.path.join(base, rel_filepath)
         try:
-            with open(path_obj, "rb") as f:
+            with open(abs_path, "rb") as f:
                 raw_data = f.read()
-            encoded = base64.b64encode(raw_data).decode("ascii")
-            file_info["content"] = encoded
+            file_info["binary_content"] = base64.b64encode(raw_data).decode("ascii")
         except Exception as e:
-            logger.warning(f"Could not base64-encode {path_obj}: {e}")
+            logger.warning(f"Could not base64-encode {abs_path}: {e}")

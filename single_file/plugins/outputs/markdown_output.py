@@ -1,219 +1,197 @@
-# single_file_dev01/single_file/plugins/outputs/markdown_output.py
+# single_file/plugins/outputs/markdown_output.py
 
 import argparse
 from datetime import datetime
 from pathlib import Path
-from typing import TextIO, Dict, Any
+import re
 
 from single_file.core import OutputPlugin
-from single_file.utils import format_path_for_output
 
 class MarkdownOutputPlugin(OutputPlugin):
     """
-    Generates Markdown documentation of the codebase, including:
-      - Directory structure
-      - Flattened file contents
-      - Optional table of contents, statistics, syntax highlighting
-      - MD5 hashes if present (i.e. if --metadata-add md5 was used)
+    Flattens the entire codebase into a single Markdown document, ideal for LLM ingestion.
+    
+    It:
+      - Provides a clear directory structure section, fully flattened with code blocks.
+      - Includes optional codebase statistics (md_stats).
+      - Inserts optional collapsible sections (md_collapsible) for file contents.
+      - Uses a well-labeled BEGIN/END format for each file.
+      - Automatically displays any metadata present in 'file_info' (including plugin-added fields).
+      - Optionally inserts a table of contents (md_toc) linking to each file anchor.
     """
     format_name = "markdown"
     supported_extensions = [".md"]
-    description = "Generates Markdown documentation of the codebase."
+    description = "Comprehensive Markdown flattening for LLM-friendly code ingestion."
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        """
+        Register plugin-specific command-line arguments without changing the core.
+        """
         group = parser.add_argument_group("Markdown output options")
-        group.add_argument(
-            "--md-toc",
-            action="store_true",
-            help="Include a table of contents in the Markdown output.",
-        )
-        group.add_argument(
-            "--md-stats",
-            action="store_true",
-            help="Include codebase statistics in the Markdown output.",
-        )
-        group.add_argument(
-            "--md-syntax",
-            action="store_true",
-            help="Add syntax highlighting code fences to file contents.",
-        )
+        group.add_argument("--md-toc", action="store_true", help="Include a table of contents with links to files")
+        group.add_argument("--md-stats", action="store_true", help="Include overall codebase statistics")
+        group.add_argument("--md-collapsible", action="store_true", help="Wrap file content in <details> tags")
+        group.add_argument("--md-full", action="store_true", help="Include the full file content (default: True for a flatten)")
 
     def generate_output(self, output_path: Path) -> None:
-        with open(output_path, "w", encoding="utf-8") as f:
-            # Header
-            self._write_header(f)
-
-            # Optional Table of Contents
-            if getattr(self.args, "md_toc", False):
-                self._write_toc(f)
-
-            # Optional Stats
-            if getattr(self.args, "md_stats", False):
-                self._write_statistics(f)
-
-            # Directory structure (mirrors the approach from default_output)
-            f.write("## Directory Structure\n\n")
-            for path in self.args.paths:
-                path_obj = Path(path).resolve()
-                display_path = self._relative_display(path_obj)
-                self._write_folder_structure(path_obj, display_path, f)
-                f.write("\n")
-
-            # Flattened content
-            f.write("## Flattened File Contents\n\n")
-            for path in self.args.paths:
-                path_obj = Path(path).resolve()
-                display_path = self._relative_display(path_obj)
-                f.write(f"### {display_path} FLATTENED CONTENT\n\n")
-                for file_path in self._find_matching_files(path_obj):
-                    file_info = self.analyzer.analyze_file(file_path)
-                    if file_info and not file_info.get("is_binary", False):
-                        rel_str = self._relative_display(file_path)
-                        f.write(f"#### {rel_str} BEGIN\n\n")
-                        # Print optional MD5 if present
-                        if "md5" in file_info:
-                            f.write(f"**MD5**: `{file_info['md5']}`  \n\n")
-                        # Syntax highlighting if requested
-                        content = file_info.get("content", "")
-                        language_hint = ""
-                        if getattr(self.args, "md_syntax", False):
-                            language_hint = self._get_language_hint(file_info.get("extension", ""))
-                        f.write(f"```{language_hint}\n")
-                        f.write(content)
-                        f.write("\n```\n\n")
-                        f.write(f"#### {rel_str} END\n\n")
-                f.write(f"### {display_path} FLATTENED CONTENT\n\n")
-
-    # -------------------------------------------------------------------------
-    # Borrowed/Adapted Methods from default_output.py
-    # -------------------------------------------------------------------------
-    def _write_folder_structure(
-        self, actual_path: Path, display_path: str, f: TextIO, level: int = 0
-    ) -> None:
         """
-        Writes out the directory structure in a tree-like format, using Markdown.
-        Uses relative paths for display.
+        Generate a flattened Markdown representation of the codebase.
         """
-        indent = "    " * level
-        name = Path(display_path).name or str(display_path)
-        f.write(f"{indent}- **{name}/**\n")
+        lines = []
+        now = datetime.now()
 
-        try:
-            items = sorted(actual_path.iterdir())
-            # Directories first
-            for item in items:
-                if item.is_dir() and self.analyzer.file_collector.should_include_path(item, True):
-                    item_display = self._relative_display(item)
-                    self._write_folder_structure(item, item_display, f, level + 1)
-            # Then files
-            for item in items:
-                if item.is_file() and self.analyzer.file_collector.should_include_path(item, False):
-                    f.write(f"{indent}    - {item.name}\n")
+        # 1) Document Header & Tool Metadata
+        lines.append("# Flattened Codebase for LLM Ingestion")
+        lines.append(f"_Generated on {now.strftime('%Y-%m-%d %H:%M:%S')}_")
+        lines.append("")
 
-        except PermissionError:
-            f.write(f"{indent}    - <permission denied>\n")
+        tool_meta = self._get_tool_metadata()
+        lines.append("## Tool Metadata")
+        for k, v in tool_meta.items():
+            lines.append(f"- **{k}:** {v}")
+        lines.append("")
 
-    def _find_matching_files(self, directory: Path):
-        """Use FileCollector to find all matching files in a directory."""
-        yield from self.analyzer.file_collector.collect_files(directory)
-
-    # -------------------------------------------------------------------------
-    # Existing Markdown features (table of contents, stats, etc.)
-    # -------------------------------------------------------------------------
-    def _write_header(self, f: TextIO) -> None:
-        f.write("# Codebase Documentation\n\n")
-        f.write(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-        f.write("## Analyzed Paths\n\n")
-        for path in self.analyzer.args.paths:
-            f.write(f"- `{path}`\n")
-        f.write("\n")
-
-    def _write_toc(self, f: TextIO) -> None:
-        f.write("## Table of Contents\n\n")
+        # 2) Optional Stats
         if getattr(self.args, "md_stats", False):
-            f.write("1. [Statistics](#statistics)\n")
-        f.write("2. [Directory Structure](#directory-structure)\n")
-        f.write("3. [Flattened File Contents](#flattened-file-contents)\n\n")
+            stats = self.analyzer.stats
+            lines.append("## Codebase Statistics")
+            lines.append(f"- **Total Files:** {stats.get('total_files', 0)}")
+            total_size = stats.get("total_size", 0)
+            size_hr = self.filesize_human_readable(total_size)
+            lines.append(f"- **Total Size:** {size_hr}")
 
-    def _write_statistics(self, f: TextIO) -> None:
-        stats = self.analyzer.stats
-        f.write("## Statistics\n\n")
+            exts = stats.get("extensions", {})
+            if exts:
+                lines.append("- **Extensions Distribution:**")
+                for ext, count in exts.items():
+                    label = ext if ext else "[no extension]"
+                    lines.append(f"  - {label}: {count}")
+            lines.append("")
 
-        f.write("### Overview\n\n")
-        f.write(f"- **Total Files**: {stats['total_files']}\n")
-        f.write(f"- **Total Size**: {self._format_size(stats['total_size'])}\n\n")
+        # 3) Directory Structure (code block for clarity)
+        lines.append("## Directory Structure")
+        lines.append("```")
+        lines.append(self._render_tree(self.analyzer.file_tree))
+        lines.append("```")
+        lines.append("")
 
-        f.write("### File Types\n\n")
-        f.write("| Extension | Count |\n")
-        f.write("|-----------|-------|\n")
-        for ext, count in sorted(stats["extensions"].items()):
-            label = ext if ext else "(no extension)"
-            f.write(f"| {label} | {count} |\n")
-        f.write("\n")
+        # 4) Prepare optional flags & file anchor references
+        md_collapsible = getattr(self.args, "md_collapsible", False)
+        # Typically in a "flatten" scenario, you want full content, but let the user override.
+        md_full = getattr(self.args, "md_full", True)
+        md_toc = getattr(self.args, "md_toc", False)
 
-        f.write("### Largest Files\n\n")
-        f.write("| File | Size |\n")
-        f.write("|------|------|\n")
-        for p, s in stats["largest_files"]:
-            rel_str = self._relative_display(p)
-            f.write(f"| `{rel_str}` | {self._format_size(s)} |\n")
-        f.write("\n")
+        # We collect file anchors for the TOC if needed:
+        toc_entries = []
 
-        f.write("### Recent Changes\n\n")
-        f.write("| File | Modified |\n")
-        f.write("|------|----------|\n")
-        for p, m in stats["recently_modified"]:
-            rel_str = self._relative_display(p)
-            f.write(f"| `{rel_str}` | {m.strftime('%Y-%m-%d %H:%M:%S')} |\n")
-        f.write("\n")
+        # 5) Flattened File Contents
+        lines.append("## Flattened File Contents")
+        lines.append("")
+        # Sort the file paths for consistent ordering.
+        sorted_paths = sorted(self.analyzer.file_info_cache.keys(), key=lambda p: str(p))
 
-    # -------------------------------------------------------------------------
-    # Helpers
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _get_language_hint(extension: str) -> str:
-        ext_map = {
-            "py": "python",
-            "js": "javascript",
-            "ts": "typescript",
-            "cpp": "cpp",
-            "c": "c",
-            "cs": "csharp",
-            "go": "go",
-            "java": "java",
-            "rb": "ruby",
-            "php": "php",
-            "html": "html",
-            "css": "css",
-            "scss": "scss",
-            "sql": "sql",
-            "md": "markdown",
-            "json": "json",
-            "yaml": "yaml",
-            "yml": "yaml",
-            "xml": "xml",
-            "sh": "bash",
-            "bash": "bash",
-        }
-        return ext_map.get(extension.lower(), "")
+        for file_path in sorted_paths:
+            file_info = self.analyzer.file_info_cache[file_path]
+            # The 'filepath' key might be present or removed, but it's typically the main ID for the file.
+            filepath = file_info.get("filepath", "UNKNOWN_FILEPATH")
+            # Generate a file-based anchor for optional TOC
+            anchor = self._make_anchor(filepath)
+            if md_toc:
+                toc_entries.append((filepath, anchor))
 
-    @staticmethod
-    def _format_size(size_in_bytes: int) -> str:
-        size = float(size_in_bytes)
-        for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
-            if size < 1024.0:
-                return f"{size:.1f} {unit}"
-            size /= 1024.0
-        return f"{size:.1f} PB"
+            # 5A) Begin marker
+            lines.append(f"### {filepath} BEGIN ### <a name=\"{anchor}\"></a>")
+            
+            # 5B) Show any metadata that remains in 'file_info' except 'content'
+            # Because metadata_add/remove might have pruned or added keys,
+            # we simply iterate what's *actually* here.
+            metadata_lines = []
+            for k, v in file_info.items():
+                if k in ("content",):  # skip file contents in this pass
+                    continue
+                if hasattr(v, "strftime"):
+                    # e.g. modified date
+                    v = v.strftime("%Y-%m-%d %H:%M:%S")
+                metadata_lines.append(f"- **{k}**: {v}")
+            if metadata_lines:
+                lines.append("**Metadata:**")
+                lines.extend(metadata_lines)
+                lines.append("")
 
-    def _relative_display(self, path_obj: Path) -> str:
+            # 5C) If md_full => Show the file content
+            if md_full:
+                content = file_info.get("content", "")
+                # We'll attempt to use the file extension for syntax highlighting
+                code_lang = file_info.get("extension", "")
+                code_block = [f"```{code_lang}", content.rstrip(), "```"]
+
+                if md_collapsible:
+                    lines.append("<details>")
+                    lines.append("<summary>Show File Content</summary>")
+                    lines.extend(code_block)
+                    lines.append("</details>")
+                else:
+                    lines.extend(code_block)
+            
+            # 5D) End marker
+            lines.append(f"### {filepath} END ###")
+            lines.append("")
+
+        # 6) If md_toc => Insert a Table of Contents linking to each file anchor
+        # We'll inject that after the stats & dir structure sections.
+        if md_toc and toc_entries:
+            toc_lines = ["## Table of Contents"]
+            for text, anchor in toc_entries:
+                toc_lines.append(f"- [{text}](#{anchor})")
+            # We can place it near the top (just after the codebase stats).
+            # Let's say we place it right before "## Directory Structure."
+            # So we find that heading and insert the TOC above it if we want.
+            # For simplicity, just append after the "Tool Metadata" and "Stats" sections.
+            insertion_index = None
+            for i, line in enumerate(lines):
+                if line.strip().startswith("## Directory Structure"):
+                    insertion_index = i
+                    break
+            if insertion_index is not None:
+                lines = lines[:insertion_index] + toc_lines + [""] + lines[insertion_index:]
+            else:
+                # If we didn't find the heading for some reason, just append at the end
+                lines.extend(toc_lines)
+
+        # 7) Write final Markdown file
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+
+        self.analyzer.logger.info(f"Markdown output generated at {output_path}")
+
+    # -------------------------------------
+    # HELPER METHODS
+    # -------------------------------------
+
+    def _render_tree(self, node: dict, indent: int = 0) -> str:
         """
-        Return a relative path (with leading './' if applicable) unless
-        --absolute-paths is in use. 
+        Recursively render the file tree in plain text form inside a code block.
+        If 'type' is missing from metadata, we fallback to checking 'children'.
         """
-        return format_path_for_output(
-            path_obj,
-            self.analyzer.args.paths[0],
-            force_absolute=self.analyzer.args.absolute_paths,
-        )
+        spacer = "    " * indent
+
+        # If it's a directory...
+        if node.get("type") == "directory" or "children" in node:
+            name = node.get("dirpath", node.get("filepath", ""))
+            result = f"{spacer}{name}/\n"
+            for child in node.get("children", []):
+                result += self._render_tree(child, indent + 1)
+        else:
+            # Otherwise, treat as file
+            name = node.get("filepath", "")
+            result = f"{spacer}{name}\n"
+
+        return result
+
+    def _make_anchor(self, text: str) -> str:
+        """
+        Create a stable anchor from a filepath by replacing non-alphanumeric characters with '-'.
+        """
+        anchor = re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-").lower()
+        return anchor
