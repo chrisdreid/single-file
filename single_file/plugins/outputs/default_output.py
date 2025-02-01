@@ -15,39 +15,46 @@ class DefaultOutputPlugin(OutputPlugin):
     format_name = "default"
     supported_extensions = [".txt"]
 
-    def generate_output(self, output_path: Path) -> None:
-        """
-        Generate the flattened codebase output with consistent path handling.
-        """
+    def generate_output(self, out_file: Path) -> None:
         try:
-            with open(output_path, "w", encoding="utf-8") as f:
-                for path in self.args.paths:
-                    path_obj = Path(path).resolve()
-                    if path_obj.is_dir():
+            with open(out_file, "w", encoding="utf-8") as output_handle:
+                for input_path in self.args.paths:
+                    input_path_obj = Path(input_path).resolve()
+                    if input_path_obj.is_dir():
                         display_path = format_path_for_output(
-                            path_obj, path_obj, self.args.absolute_paths
+                            input_path_obj, input_path_obj, self.args.absolute_paths
                         )
-
                         # Write the directory structure
-                        self._write_folder_structure(path_obj, display_path, f)
+                        self._write_folder_structure(input_path_obj, display_path, output_handle)
 
-                        # Write the flattened content
-                        f.write(f"\n### {display_path} FLATTENED CONTENT ###\n")
-                        for file_path in self._find_matching_files(path_obj):
-                            file_info = self.analyzer.analyze_file(file_path)
-                            if file_info and not file_info.get("is_binary", False):
-                                file_display_path = format_path_for_output(
-                                    file_path, path_obj, self.args.absolute_paths
+                        # Write the flattened content for this directory
+                        output_handle.write(f"\n### {display_path} FLATTENED CONTENT ###\n")
+                        for file_entry in self._find_matching_files(input_path_obj):
+                            file_metadata = self.analyzer.analyze_file(file_entry)
+                            if file_metadata and not file_metadata.get("is_binary", False):
+                                file_display = format_path_for_output(
+                                    file_entry, input_path_obj, self.args.absolute_paths
                                 )
-                                f.write(f"\n### {file_display_path} BEGIN ###\n")
-                                content = file_info.get("content", "")
-                                f.write(content.rstrip())
-                                f.write(f"\n### {file_display_path} END ###\n")
-                        f.write(f"\n### {display_path} FLATTENED CONTENT ###\n\n")
-            logger.info(f"Default output generated at {output_path}")
-        except Exception as e:
-            logger.error(f"Failed to generate default output: {e}")
+                                output_handle.write(f"\n### {file_display} BEGIN ###\n")
+                                content_text = file_metadata.get("content", "")
+                                output_handle.write(content_text.rstrip())
+                                output_handle.write(f"\n### {file_display} END ###\n")
+                        output_handle.write(f"\n### {display_path} FLATTENED CONTENT ###\n\n")
+                    elif input_path_obj.is_file():
+                        # Forced inclusion: process the file even if its extension would normally be filtered.
+                        file_metadata = self.analyzer.analyze_file(input_path_obj)
+                        file_display = format_path_for_output(
+                            input_path_obj, input_path_obj.parent, self.args.absolute_paths
+                        )
+                        output_handle.write(f"\n### {file_display} BEGIN ###\n")
+                        content_text = file_metadata.get("content", "")
+                        output_handle.write(content_text.rstrip())
+                        output_handle.write(f"\n### {file_display} END ###\n")
+            logger.info(f"Default output generated at {out_file}")
+        except Exception as error:
+            logger.error(f"Failed to generate default output: {error}")
             raise
+
 
     def _write_folder_structure(
         self, actual_path: Path, display_path: str, f: TextIO, level: int = 0

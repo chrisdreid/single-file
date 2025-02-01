@@ -1,4 +1,8 @@
-# single_file_dev01/single_file/core.py
+"""
+Core module for SingleFile.
+This file defines the BaseArguments class, the FileCollector for scanning and filtering files,
+and the base OutputPlugin interface.
+"""
 
 from abc import ABC, abstractmethod
 import argparse
@@ -7,10 +11,10 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, Iterator, List
-from single_file.utils import read_file_with_encoding_gymnastics
-from single_file import utils
 
+from single_file.utils import read_file_with_encoding_gymnastics
 import logging
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +39,11 @@ class BaseArguments:
         self.exclude_extensions: Optional[List[str]] = None
         self.show_guide: bool = False
         self.replace_invalid_chars: bool = False
-        # New for incremental metadata
         self.metadata_add: List[str] = []
         self.metadata_remove: List[str] = []
+        self.force_binary_content: bool = False
+        # New: query attribute (defaults to None if not specified)
+        self.query = None
 
     @classmethod
     def add_core_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -46,13 +52,13 @@ class BaseArguments:
             "--paths",
             nargs="*",
             default=["."],
-            help="Paths to scan",
+            help="Paths to scan (files and directories are supported; if a file is given, its filters are overridden)"
         )
         parser.add_argument(
             "--depth",
             type=int,
             default=0,
-            help="How deep should we go? (0 = all the way down!)",
+            help="How deep should we go? (0 = unlimited)",
         )
         parser.add_argument(
             "--output-file",
@@ -109,23 +115,22 @@ class BaseArguments:
             action="store_true",
             help="Replace weird characters instead of giving up",
         )
-        # New incremental metadata flags:
         parser.add_argument(
             "--metadata-add",
             nargs="*",
             default=[],
-            help="Add one or more metadata fields (e.g., 'content', 'md5')"
+            help="Add one or more metadata fields (e.g., 'content', 'md5')",
         )
         parser.add_argument(
             "--metadata-remove",
             nargs="*",
             default=[],
-            help="Remove one or more default metadata fields"
+            help="Remove one or more default metadata fields",
         )
         parser.add_argument(
             "--force-binary-content",
             action="store_true",
-            help="Include base64-encoded data for binary files (otherwise skip them)."
+            help="If set, read and base64-encode binary files instead of skipping them.",
         )
 
     @classmethod
@@ -144,11 +149,10 @@ class FileCollector:
     def __init__(self, analyzer):
         self.analyzer = analyzer
         self.args = analyzer.args
+        from single_file.utils import DEFAULT_IGNORE_PATTERNS
+        self.default_ignore_patterns = DEFAULT_IGNORE_PATTERNS
 
-        # Default patterns that should always be ignored
-        self.default_ignore_patterns = utils.DEFAULT_IGNORE_PATTERNS
-
-    def should_include_path(self, path: Path, is_dir: bool = False) -> bool:
+    def should_include_path(self, path_item: Path, is_dir: bool = False) -> bool:
         """Determine if a path should be included based on configured patterns."""
         patterns = (
             self.default_ignore_patterns["directories"]
@@ -163,106 +167,122 @@ class FileCollector:
 
         for pattern in patterns:
             try:
-                if re.search(pattern, str(path.name)):
+                if re.search(pattern, str(path_item.name)):
                     logger.debug(
-                        f"Excluding {'directory' if is_dir else 'file'} '{path}' due to pattern '{pattern}'"
+                        f"Excluding {'directory' if is_dir else 'file'} '{path_item}' due to pattern '{pattern}'"
                     )
                     return False
             except re.error:
                 logger.warning(f"Invalid regex pattern '{pattern}'")
 
         if not is_dir:
-            ext = path.suffix[1:] if path.suffix else ""
-            if self.args.extensions and ext not in self.args.extensions:
+            ext_str = path_item.suffix[1:] if path_item.suffix else ""
+            if self.args.extensions and ext_str not in self.args.extensions:
                 logger.debug(
-                    f"Excluding file '{path}' due to extension '{ext}' not in extensions"
+                    f"Excluding file '{path_item}' because extension '{ext_str}' is not allowed"
                 )
                 return False
-            if self.args.exclude_extensions and ext in self.args.exclude_extensions:
+            if self.args.exclude_extensions and ext_str in self.args.exclude_extensions:
                 logger.debug(
-                    f"Excluding file '{path}' due to extension '{ext}' in exclude_extensions"
+                    f"Excluding file '{path_item}' because extension '{ext_str}' is in the exclude list"
                 )
                 return False
 
         if is_dir and self.args.include_dirs:
-            # If include_dirs is specified, include only directories matching the patterns
             for pattern in self.args.include_dirs:
-                if re.search(pattern, str(path.name)):
+                if re.search(pattern, str(path_item.name)):
                     return True
             logger.debug(
-                f"Excluding directory '{path}' as it does not match include_dirs patterns"
+                f"Excluding directory '{path_item}' as it does not match include_dirs patterns"
             )
             return False
 
         if not is_dir and self.args.include_files:
-            # If include_files is specified, include only files matching the patterns
             for pattern in self.args.include_files:
-                if re.search(pattern, str(path.name)):
+                if re.search(pattern, str(path_item.name)):
                     return True
             logger.debug(
-                f"Excluding file '{path}' as it does not match include_files patterns"
+                f"Excluding file '{path_item}' as it does not match include_files patterns"
             )
             return False
 
         return True
 
-    def collect_files(self, root_path: Path, current_depth: int = 0) -> Iterator[Path]:
-        """Recursively collect files with consistent filtering."""
+    def collect_files(self, start_path: Path, current_depth: int = 0) -> Iterator[Path]:
+        """
+        Recursively collect files with filtering.
+        Forced inclusion: if start_path is a file, yield it immediately (bypassing filtering).
+        """
+        if start_path.is_file():
+            yield start_path
+            return
+
         try:
             if self.args.depth > 0 and current_depth >= self.args.depth:
                 return
 
-            items = sorted(root_path.iterdir())
+            entries = sorted(start_path.iterdir())
 
-            dirs = [d for d in items if d.is_dir()]
-            for dir_path in dirs:
-                if self.should_include_path(dir_path, is_dir=True):
-                    yield from self.collect_files(dir_path, current_depth + 1)
+            # Process directories
+            for entry in entries:
+                if entry.is_dir() and self.should_include_path(entry, is_dir=True):
+                    yield from self.collect_files(entry, current_depth + 1)
 
-            files = [f for f in items if f.is_file()]
-            for file_path in files:
-                if self.should_include_path(file_path, is_dir=False):
-                    yield file_path
+            # Process files
+            for entry in entries:
+                if entry.is_file() and self.should_include_path(entry, is_dir=False):
+                    yield entry
 
         except PermissionError:
-            logger.warning(f"Permission denied accessing {root_path}")
-        except Exception as e:
+            logger.warning(f"Permission denied accessing {start_path}")
+        except Exception as err:
             if not self.args.ignore_errors:
                 raise
-            logger.warning(f"Error processing {root_path}: {e}")
+            logger.warning(f"Error processing {start_path}: {err}")
 
-    def get_file_metadata(self, file_path: Path) -> dict:
+    def get_file_metadata(self, file_item: Path) -> dict:
         """
-        Analyze a file and gather metadata. 
-        Binary files get a placeholder in 'content'.
-        Text files store actual content. 
+        Analyze a file and gather metadata.
+        Forced files bypass filters except that the binary check is still applied.
+        If the file is binary:
+          - If --force-binary-content is flagged, read and base64-encode its content.
+          - Otherwise, set content to a placeholder.
         """
         metadata = {}
-        metadata["path"] = file_path.resolve()
-        metadata["size"] = file_path.stat().st_size
-        metadata["modified"] = datetime.fromtimestamp(file_path.stat().st_mtime)
-        extension = file_path.suffix[1:] if file_path.suffix else ""
-        metadata["extension"] = extension
+        metadata["path"] = file_item.resolve()
+        metadata["size"] = file_item.stat().st_size
+        metadata["modified"] = datetime.fromtimestamp(file_item.stat().st_mtime)
+        ext_str = file_item.suffix[1:] if file_item.suffix else ""
+        metadata["extension"] = ext_str
 
-        # Decide if it's binary
-        if self._is_binary(file_path):
-            # Placeholder
-            metadata["content"] = "**binary data found: skipped**"
+        is_bin = self._is_binary(file_item)
+        metadata["is_binary"] = is_bin
+
+        if is_bin:
+            if self.args.force_binary_content:
+                try:
+                    with open(file_item, "rb") as f:
+                        raw_data = f.read()
+                    encoded = base64.b64encode(raw_data).decode("ascii")
+                    metadata["content"] = encoded
+                except Exception as e:
+                    metadata["content"] = "**failed to read binary data**"
+            else:
+                metadata["content"] = "**binary data found: skipped**"
         else:
-            # Real text
-            text = read_file_with_encoding_gymnastics(file_path)
-            metadata["content"] = text
-            metadata["line_count"] = len(text.splitlines())
+            text_content = read_file_with_encoding_gymnastics(file_item)
+            metadata["content"] = text_content
+            metadata["line_count"] = len(text_content.splitlines())
 
         return metadata
 
-    def _is_binary(self, file_path: Path) -> bool:
+    def _is_binary(self, file_item: Path) -> bool:
         try:
-            with open(file_path, "rb") as f:
-                chunk = f.read(1024)
-                return b"\0" in chunk
-        except Exception as e:
-            logger.warning(f"Could not determine if {file_path} is binary: {e}")
+            with open(file_item, "rb") as file_handle:
+                sample = file_handle.read(1024)
+                return b"\0" in sample
+        except Exception as err:
+            logger.warning(f"Could not determine if {file_item} is binary: {err}")
         return False
 
 
@@ -286,10 +306,9 @@ class OutputPlugin(ABC):
         pass
 
     @staticmethod
-    def _format_size(bytesize: int) -> str:
-        """Convert file sizes to human-readable format."""
+    def _format_size(byte_count: int) -> str:
         for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if bytesize < 1024:
-                return f"{bytesize:.1f} {unit}"
-            bytesize /= 1024
-        return f"{bytesize:.1f} PB"
+            if byte_count < 1024:
+                return f"{byte_count:.1f} {unit}"
+            byte_count /= 1024
+        return f"{byte_count:.1f} PB"
