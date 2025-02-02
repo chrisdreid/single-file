@@ -176,6 +176,60 @@ single_file \
 
 <br>
 
+## Filtering and Processing: Order of Operations
+SingleFile ensures your directory paths, file filters, recursion depth, and metadata requirements are all accounted for before any outputs are generated. Below is a high-level overview showing how --paths, filtering options, and metadata additions operate within SingleFile:
+
+---
+```mermaid
+flowchart TB
+    A[Phase 1: Parse CLI & Config] --> B[Merge Config & CLI Args]
+    B --> C["Discover Plugins (Output & Metadata)"]
+    C --> D[Initialize Analyzer & Build Metadata Config]
+    D --> E["Gather All Files (for each path)"]
+    E --> F[Check Depth & Directory Filters]
+    F --> G{Directory?}
+    G -- Yes --> H["Recurse into Subdirectories (subject to depth)"]
+    G -- No --> I["Check File Filters (regex, extensions, etc.)"]
+    H --> I
+    I --> J[If included, read file content & attach built-in metadata]
+    J --> K[Attach metadata plugins as needed]
+    K --> L[Store file info in memory cache]
+    L --> M[After scanning all paths, generate outputs]
+    M --> N["Write Flattened Files (JSON, MD, etc.)"]
+```
+
+### Description of Each Step
+- Phase 1: Parse CLI & Config
+- SingleFile first collects essential arguments like --config, --disable-plugin, and any initial flags (e.g., --paths, --depth) but doesn’t finalize them yet.
+- Merge Config & CLI Args
+- If a JSON config is provided (--config file.json), SingleFile merges those settings with any command-line overrides.
+- Discover Plugins
+- SingleFile scans the plugins/ directory, loading both Output Plugins and Metadata Plugins, except those disabled via --disable-plugin.
+- Initialize Analyzer & Build Metadata Config
+- Internal data structures are set up for scanning. SingleFile merges built-in metadata options with any discovered metadata plugins, factoring in --metadata-add and --metadata-remove.
+- Gather All Files
+- SingleFile iterates over each item in --paths, determining if it’s a file or directory.
+- Check Depth & Directory Filters
+- For directories, SingleFile checks recursion depth (against --depth) and directory-exclusion patterns (like --exclude-dirs, --include-dirs).
+- If Directory
+-  If the directory is included and depth allows, SingleFile recurses further into subdirectories.
+- If File
+- For files, SingleFile evaluates extension-based filters (--extensions, --exclude-extensions) and name-based patterns (--exclude-files, --include-files).
+- Read File Content & Attach Built-in Metadata
+- SingleFile reads file content (or skips if binary). Attaches basic metadata like file size, last modified time, etc., unless removed via CLI (--metadata-remove).
+- Attach Metadata Plugins
+- Each plugin that you’ve either enabled by default or with --metadata-add <plugin> runs and inserts extra data (e.g., MD5 hashes, base64-encoded binary data) into the file’s metadata.
+- Store File Info in Memory
+- The assembled metadata is cached in the analyzer’s internal file_info_cache.
+- Generate Outputs
+- After scanning all paths and applying filters, SingleFile invokes your chosen Output Plugins (--formats).
+- Write Flattened Files
+
+Each plugin writes out its specified format (e.g., .json, .md).
+Finally, SingleFile logs success, and the flattened code along with any metadata is ready for use.
+This pipeline ensures that only the files and directories you care about end up in your final flattened output, enriched with whichever metadata fields you’ve chosen. It also neatly separates scanning/metadata collection from rendering, so you can trust that all your filtering decisions have been processed before the output stage.
+
+
 ---
 
 ## Advanced Examples
