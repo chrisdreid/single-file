@@ -3,7 +3,9 @@
 
 # SingleFile
 
-**SingleFile** **allows you to transform your codebase into LLM-friendly formats directly from commandline**. It is a robust **codebase flattening tool** designed to unify multiple files and directories into comprehensive, metadata-rich outputs that gives you the control of what your LLM can see. Whether you need a simple text flatten for a single folder or an in-depth, multi-output, metadata-filled output for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
+**Transform Your Entire Codebase for Optimal LLM Comprehension and Output**. With a robust feature set, you have full control over the flattening and the ability to enrich your code with crucial metadata, **single-file** creates outputs that dramatically improve LLM comprehension and response quality.
+
+It is a robust codebase flattening tool designed to unify multiple files and directories into comprehensive, metadata-rich outputs that gives you the control of what your LLM can see. Whether you need simple text flatten for a single folder or an in-depth, multi-output, metadata-filled output for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
 
 - **No External Dependencies**: Built exclusively on the Python Standard Library.  
 - **Config-Driven**: Merge a JSON config file with CLI arguments for reproducible setups.  
