@@ -1,54 +1,64 @@
+
 ![Banner](./images/banner.png)
 
 # SingleFile
 
-SingleFile is a top-tier codebase **flattening** and **analysis** tool designed to unify all your project files into comprehensive, metadata-rich outputs. Whether you’re aiming to streamline code sharing with AI systems, produce elegant documentation, or develop custom analytics, SingleFile’s modular design can adapt to your workflow.
+SingleFile is a **codebase flattening and analysis** tool designed to unify multiple files and directories into comprehensive, metadata-rich outputs. Whether you need a simple text flatten for a single folder or an in-depth, multi-output analysis for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
+
+- **No External Dependencies**: Built exclusively on the Python Standard Library.  
+- **Config-Driven**: Merge a JSON config file with CLI arguments for reproducible setups.  
+- **Pluggable**: Add your own output/metadata plugins for specialized needs.  
 
 <br>
 
 ---
-## Key Features
-- **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux.
-- **Multiple Output Formats**: Built-in support for text (Default), Markdown, and JSON, with the option to create your own output plugins (HTML, CSV, or anything else).
-- **Rich Metadata**: Choose from defaults like file size, modification timestamps, or line counts. Extend with MD5 checksums, base64-encoded binary data, or your own custom calculations.
-- **Selective Inclusion/Exclusion**: Filter directories, file names, or file extensions with regex patterns for precise scanning.
-- **Config-Driven**: Merge a JSON config file with CLI arguments—ideal for reproducible, team-shared workflows.
-- **Two-Phase CLI**: Phase 1 loads global arguments (like `--config` and `--disable-plugin`), while Phase 2 merges your configurations and plugin-specific flags.
-- **Error Handling**: Ignore problematic paths or fail early—your choice.
-
-**No External Dependencies**  
-SingleFile is proudly built using only the Python Standard Library—no additional third-party packages. This minimalistic approach ensures:
-1. **Zero Hassle Installation**: No extra libraries to install or maintain.  
-2. **Reduced Conflicts**: Fewer version and compatibility issues.  
-3. **Portable and Lightweight**: Straightforward to run on any system with Python 3 installed.  
-
-We believe in providing a lean, self-contained solution that’s easy to integrate into diverse environments.
-<br>
-
----
-
-## Table of Contents
-- [Acknowledgments](#acknowledgments)
-- [Installation](#installation)
-  - [Linux/macOS](#linuxmacos)
-  - [Windows](#windows)
-  - [Using Pyenv](#using-pyenv)
-- [Environment Variables](#environment-variables)
-- [Basic Usage](#basic-usage)
-- [Advanced Examples](#advanced-examples)
-- [Plugin Architecture](#plugin-architecture)
-  - [Output Plugins](#output-plugins)
-  - [Metadata Plugins](#metadata-plugins)
-- [Contributing & Development](#contributing--development)
-- [License](#license)
-
-<br>
-
----
-
 ## Acknowledgments
 
-**Special thanks** to [@VictorHenrique317](https://github.com/VictorHenrique317) for his project [flatten-codebase](https://github.com/VictorHenrique317/flatten-codebase.git). SingleFile was originally inspired by flatten-codebase, and this collaboration of ideas helped propel our codebase forward.
+Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for his original work on [flatten-codebase](https://github.com/VictorHenrique317/flatten-codebase.git). SingleFile drew inspiration from flatten-codebase; And used flatten-codebase extensively to build this and many tools.
+
+<br>
+
+---
+## Table of Contents
+
+1. [Key Features](#key-features)  
+2. [Installation](#installation)  
+   - [Linux/macOS](#linuxmacos)  
+   - [Windows](#windows)  
+   - [Using Pyenv](#using-pyenv)  
+3. [Environment Variables](#environment-variables)  
+4. [Basic Usage](#basic-usage)  
+   - [A Minimal One-Liner](#a-minimal-one-liner)  
+   - [Simple Example with Defaults](#simple-example-with-defaults)  
+5. [Intermediate Examples](#intermediate-examples)  
+   - [Filtering and Custom Metadata](#filtering-and-custom-metadata)  
+   - [Using a JSON Config](#using-a-json-config)  
+6. [Advanced Examples](#advanced-examples)  
+   - [Multiple Outputs](#multiple-outputs)  
+   - [Querying Available Plugins and Configs](#querying-available-plugins-and-configs)  
+   - [Running from Another Script](#running-from-another-script)  
+7. [Plugin Architecture](#plugin-architecture)  
+   - [Output Plugins](#output-plugins)  
+   - [Metadata Plugins](#metadata-plugins)  
+8. [VS Code Extension (Coming Soon)](#vs-code-extension-coming-soon)  
+9. [Contributing & Development](#contributing--development)  
+10. [Acknowledgments](#acknowledgments)  
+11. [License](#license)  
+
+<br>
+
+---
+
+## Key Features
+
+- **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux.  
+- **Multiple Output Formats**: Text (`default`), Markdown, and JSON included. Write your own plugin for HTML, CSV, etc.  
+- **Rich Metadata**: Default fields like file size, modified date, or extension. Add custom metadata—e.g., MD5 checksums or base64 binary content—through plugins.  
+- **Powerful Filtering**: Use regex to include/exclude directories, files, or extensions.  
+- **Two-Phase CLI**: 
+  1. Global arguments (like `--config` and `--disable-plugin`)  
+  2. Final pass merges JSON config + plugin-specific flags  
+- **Zero Dependencies**: Only Python’s Standard Library—no extra pip installs or environment constraints.  
 
 <br>
 
@@ -63,7 +73,7 @@ We believe in providing a lean, self-contained solution that’s easy to integra
    git clone https://github.com/chrisdreid/single_file.git
    cd single_file
    ```
-2. **Install** in editable mode (recommended for development or plugin creation):
+2. **Install** (editable mode recommended for development or plugin creation):
    ```bash
    pip install -e .
    ```
@@ -71,14 +81,14 @@ We believe in providing a lean, self-contained solution that’s easy to integra
    ```bash
    single_file --help
    ```
-   or
+   or:
    ```bash
    python -m single_file --help
    ```
 
 ### Windows
 
-1. **Clone or download** the repository:
+1. **Clone or download**:
    ```powershell
    git clone https://github.com/chrisdreid/single_file.git
    cd single_file
@@ -87,27 +97,25 @@ We believe in providing a lean, self-contained solution that’s easy to integra
    ```powershell
    pip install -e .
    ```
-3. **Run**:
+3. **Check** everything:
    ```powershell
    single_file --help
    ```
-   If `single_file` isn’t recognized, verify your Python scripts directory is added to the `PATH`, or simply use `python -m single_file --help`.
+   If `single_file` isn’t recognized, verify your Python scripts directory is on the `PATH`, or use:
+   ```powershell
+   python -m single_file --help
+   ```
 
 ### Using Pyenv
+
 If you prefer isolating specific Python versions:
 
-1. **Install** Python with [pyenv](https://github.com/pyenv/pyenv):
-   ```bash
-   pyenv install 3.10.5
-   ```
-2. **Activate** it:
-   ```bash
-   pyenv shell 3.10.5
-   ```
-3. **Install** SingleFile:
-   ```bash
-   pip install -e .
-   ```
+```bash
+pyenv install 3.10.5
+pyenv shell 3.10.5
+pip install -e .
+single_file --help
+```
 
 <br>
 
@@ -115,7 +123,7 @@ If you prefer isolating specific Python versions:
 
 ## Environment Variables
 
-SingleFile looks for additional config files in any directories listed in `SINGLEFILE_CONFIG_PATH`. This variable is optional but can be helpful for storing shared config files in a common location.
+You can set the `SINGLEFILE_CONFIG_PATH` environment variable to point to one or more directories containing shared JSON config files:
 
 - **macOS/Linux**:
   ```bash
@@ -130,49 +138,90 @@ SingleFile looks for additional config files in any directories listed in `SINGL
   set SINGLEFILE_CONFIG_PATH=C:\singlefile_configs
   ```
 
-To verify SingleFile sees your configs:
+To see which config files SingleFile finds, run:
+
 ```bash
 single_file --query configs
 ```
 
 <br>
 
-## VS Code Extension (Coming Soon)
-
-We’re also gearing up to release a dedicated **Visual Studio Code extension** that deeply integrates SingleFile’s capabilities right into your editor workflow. Here’s what you can expect:
-
-- **One-Click Flattening**: Quickly consolidate your current workspace with a single command.
-- **Inline Configuration**: Set paths, formats, and metadata plugins directly from the VS Code interface.
-- **Real-Time Feedback**: See notifications or error messages in the VS Code status bar/log, providing immediate feedback during the flatten or analysis process.
-- **Convenient Output**: Automatically open or preview your flattened files without leaving the editor.
-
-Stay tuned for announcements as we finalize the extension and make it available in the Visual Studio Marketplace!
-
 ---
 
 ## Basic Usage
 
-Use SingleFile to flatten your codebase into a single or multiple outputs. Below is an illustrative example—tweak it to your preferences:
+### A Minimal One-Liner
+
+Flatten **everything** in the current directory (recursively) into a single default text file named `output.txt`:
+
+```bash
+single_file
+```
+
+Explanation:
+- Defaults to scanning `.`  
+- Produces `./output.txt` (because `--output-file` defaults to `output` and the default extension is `.txt`)  
+
+### Simple Example with Defaults
 
 ```bash
 single_file \
-  --paths /path/to/my_project \
-  --formats default,json \
-  --output-file my_flattened \
+  --paths ./src \
+  --output-file my_project_flat.txt
+```
+
+- Scans `./src` recursively with no depth limit.
+- Creates a single text file: `my_project_flat.txt`.
+- **No** advanced filters are applied. All files are included (unless caught by default ignore patterns like `.git`).
+
+<br>
+
+---
+
+## Intermediate Examples
+
+### Filtering and Custom Metadata
+
+```bash
+single_file \
+  --paths ./my_app \
   --depth 2 \
-  --ignore-errors \
-  --exclude-dirs ".git" "__pycache__" \
+  --exclude-dirs "^(\\.git|__pycache__)$" \
   --extensions py md \
   --metadata-add md5 \
   --metadata-remove size modified
 ```
 
 **What’s Happening**:
-- Recursively scans `/path/to/my_project` up to two directory levels.
-- Skips errors, meaning unreadable files or permission issues won’t stop the process.
-- Produces two files: `my_flattened.txt` (default plugin) and `my_flattened.json` (JSON plugin).
-- Includes only `.py` and `.md` files, ignoring `.git` and `__pycache__` directories.
-- Attaches an `md5` field to each file’s metadata; excludes default `size` and `modified` fields.
+- Scans `./my_app` up to **2 levels** deep.
+- Excludes `.git` and `__pycache__` directories.
+- Only processes `.py` and `.md` files.
+- **Adds** MD5 checksums to each file’s metadata (`--metadata-add md5`).
+- **Removes** default `size` and `modified` fields from output (`--metadata-remove size modified`).
+- Outputs a single file named `output.txt` (the default).
+
+### Using a JSON Config
+
+You can store frequently used arguments in a JSON file, for instance `dev_rules.json`:
+
+```json
+{
+  "paths": ["./my_app"],
+  "exclude_dirs": [".git", "__pycache__"],
+  "extensions": ["py", "md", "json"],
+  "output_file": "my_app_flat",
+  "formats": "markdown"
+}
+```
+
+Then invoke:
+
+```bash
+single_file --config dev_rules.json --md-stats
+```
+
+This merges the `dev_rules.json` config with any CLI overrides (`--md-stats` in this example).  
+**Result**: A single Markdown file `my_app_flat.md` containing code blocks plus codebase statistics.
 
 <br>
 
@@ -180,42 +229,53 @@ single_file \
 
 ## Advanced Examples
 
-### 1. Loading a JSON Config
-If you’ve stored arguments in a JSON file (e.g., `dev_rules.json`):
-```json
-{
-  "paths": ["./src"],
-  "exclude_dirs": [".git", "__pycache__"],
-  "extensions": ["py", "json"],
-  "output_file": "consolidated_output",
-  "formats": "markdown,json"
-}
-```
-Run:
-```bash
-single_file --config dev_rules.json --md-toc --metadata-add md5
-```
-This merges the file's instructions with your CLI overrides (`--md-toc`, `--metadata-add md5`).
+### Multiple Outputs
 
-### 2. Query Plugins or Metadata
-```bash
-single_file --query formats plugins metadata
-```
-Outputs JSON describing:
-- **formats**: Available output formats (plugin name and file extensions).
-- **plugins**: Discovered plugins (both output and metadata).
-- **metadata**: Default fields and plugin-added fields, plus which ones are enabled by default.
+Generate both plain text **and** JSON outputs in one run:
 
-### 3. Windows: Elevated or Standard 
-```powershell
-python -m single_file `
-  --paths . `
-  --depth 1 `
-  --formats markdown `
-  --exclude-files ".*\.log$" `
-  --metadata-add md5
+```bash
+single_file \
+  --paths ./my_app \
+  --formats default,json \
+  --output-file consolidated \
+  --ignore-errors
 ```
-(Similar functionality as in Linux/macOS—just a different shell syntax.)
+
+- Produces `consolidated.txt` and `consolidated.json`.
+- If any permission or read errors occur, SingleFile will skip those entries instead of failing.
+
+### Querying Available Plugins and Configs
+
+```bash
+single_file --query formats plugins metadata configs
+```
+
+**Returns** (in JSON):
+- **formats**: All output plugins (with supported extensions, e.g., `.txt`, `.md`, `.json`).  
+- **plugins**: Lists both output and metadata plugin names + descriptions.  
+- **metadata**: Shows which fields are enabled by default, plus any plugin-specific fields (like `md5`, `binary_content`).
+- **configs**: Identifies known JSON config files found in `SINGLEFILE_CONFIG_PATH` or the local `configs/` folder.
+
+### Running from Another Script
+
+You can run SingleFile programmatically (as a subprocess) and parse its JSON output:
+
+```python
+import subprocess, json
+
+def run_singlefile_query(what="formats"):
+    result = subprocess.run(
+        ["single_file", "--query", what],
+        capture_output=True,
+        text=True
+    )
+    return json.loads(result.stdout)
+
+info = run_singlefile_query("formats")
+print("Available output plugins:", info["formats"])
+```
+
+This approach is useful for dynamically building UI elements, gating logic on discovered plugins, or simply automating SingleFile in a larger pipeline.
 
 <br>
 
@@ -223,17 +283,19 @@ python -m single_file `
 
 ## Plugin Architecture
 
-SingleFile is designed around **plugins** so you can adapt it to your unique requirements.
+SingleFile is highly extensible. Write your own output or metadata plugins to shape the final content to your exact needs.
 
 ### Output Plugins
 
-- **Default** (`.txt`): Simple text flattening, including a file tree and `BEGIN/END` markers around file content.
-- **Markdown** (`.md`): Collapsible sections, table of contents, syntax-highlighted code blocks.
-- **JSON** (`.json`): Structured representation of the codebase, with optional filters on file content and custom metadata.
+- **Default** (`default`, `.txt`): Basic text flatten with file markers.  
+- **Markdown** (`markdown`, `.md`): Adds code blocks, optional collapsible sections, and an auto-generated table of contents (`--md-toc`).  
+- **JSON** (`json`, `.json`): Produces a structured JSON object capturing directory trees, file metadata, and file contents (optional flags like `--json-no-content` remove the content field).  
 
-**Create Your Own** (HTML example):
+**To create a custom output plugin** (example: HTML):
+
 ```python
 # single_file/plugins/outputs/html_output.py
+
 from single_file.core import OutputPlugin
 from pathlib import Path
 
@@ -242,29 +304,30 @@ class HTMLOutputPlugin(OutputPlugin):
     supported_extensions = [".html"]
 
     def generate_output(self, output_path: Path) -> None:
-        # Access self.analyzer.file_info_cache for your data
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("<html><body>\n")
             f.write("<h1>Project Overview</h1>\n")
             for file_info in self.analyzer.file_info_cache.values():
                 f.write(f"<h2>{file_info['filepath']}</h2>")
-                content = file_info.get("content", "No content")
+                content = file_info.get("content", "")
                 f.write(f"<pre>{content}</pre>\n")
             f.write("</body></html>\n")
 ```
-Then run:
+
+Then run it:
+
 ```bash
 single_file --formats html
 ```
-You’ll see a `.html` file appear with your entire codebase embedded.
 
 ### Metadata Plugins
 
-- **MD5**: `--metadata-add md5` adds an MD5 checksum for each file.
-- **Binary Content**: Encodes binary data as base64 if you explicitly request it.
-- **File Size (Human-Readable)**: Supplements the raw byte count with a friendlier representation (e.g., “14.2 KB”).
+- **MD5** (`md5`): Add an MD5 checksum to each file.  
+- **Binary Content** (`binary_content`): Base64-encodes binary files if forced.  
+- **File Size (Human-Readable)** (`filesize_human_readable`): E.g., `14.2 KB`.  
 
-**Create Your Own** (example):
+**Create your own** by subclassing `MetadataPlugin`:
+
 ```python
 # single_file/plugins/metadata/example_plugin.py
 from single_file.plugins.metadata.plugin_base import MetadataPlugin
@@ -275,97 +338,62 @@ class ExamplePlugin(MetadataPlugin):
     description = "Stores a custom field named 'example_field'."
 
     def attach_metadata(self, file_info: dict) -> None:
-        file_info["example_field"] = "Some custom value"
+        file_info["example_field"] = "Any custom data you want"
 ```
-Invoke:
+
+Then enable it:
+
 ```bash
 single_file --metadata-add example_field
 ```
-Now, each file has `"example_field": "Some custom value"`.
 
 <br>
 
 ---
-### Query Interface and Integration
 
-SingleFile includes a **query mode** that returns various slices of information (in JSON) **without** actually flattening the code. This is perfect for scenarios where you want to dynamically gather insights about SingleFile’s capabilities or planned actions before a full run.
+## VS Code Extension (Coming Soon)
 
-**Example CLI Usage**:
-```bash
-single_file --query formats plugins metadata configs
-```
-Possible query targets include:
-- **`formats`**: Shows available output plugins and the file extensions they produce.
-- **`plugins`**: Lists both output and metadata plugins, plus short descriptions.
-- **`metadata`**: Displays built-in and plugin-provided metadata fields.
-- **`configs`**: Reveals config files SingleFile finds in your environment or search paths.
+A **Visual Studio Code extension** for SingleFile is in the works. Expect features like:
 
-#### Using Query Output in Your Own Code
+- **One-Click Flattening**: Consolidate your workspace’s files with minimal effort.  
+- **Inline Configuration**: Set paths, formats, and metadata plugins directly in VS Code.  
+- **Real-Time Feedback**: See notifications or errors in the VS Code status bar/log.  
+- **Auto-Preview**: Open or preview the flattened output in an integrated editor pane.  
 
-Since the query result is **JSON**, you can execute SingleFile as a subprocess within your Python, Node.js, or any other language script, then parse the output for further logic. For example, in Python:
+Stay tuned for announcements and early previews on the extension’s functionality!
 
-```python
-import json
-import subprocess
-
-def get_singlefile_info(what="formats"):
-    # Running the CLI with --query <target>
-    result = subprocess.run(
-        ["single_file", "--query", what],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    if result.returncode != 0:
-        print("Error querying SingleFile:", result.stderr)
-        return None
-    
-    # The output is JSON
-    return json.loads(result.stdout)
-
-# Example usage:
-formats_data = get_singlefile_info("formats")
-if formats_data:
-    for fmt, details in formats_data["formats"].items():
-        print(f"Format: {fmt}, Extensions: {details['extensions']}")
-```
-
-1. **Spawn** SingleFile with `--query`.
-2. **Capture** its JSON output.
-3. **Parse** and integrate that information into your own application (e.g., dynamic UI menus, scripts that auto-generate additional parameters, etc.).
-
-This modular approach makes SingleFile more than just a CLI tool—it transforms it into a **metadata service** you can tap into programmatically for a wide range of development and automation workflows.
 <br>
 
 ---
 
 ## Contributing & Development
 
-Contributions are always welcome! Here’s how you can get involved:
-1. **Fork or Clone** the repo.
-2. **Install** with `pip install -e .` for active development.
-3. **Check out** the `tests/` folder for examples of how to write new unit tests.
+Contributions are encouraged! Here’s how:
+
+1. **Fork** or **clone** this repo.  
+2. **Install** in editable mode:
+   ```bash
+   pip install -e .
+   ```
+3. **Write** new unit tests in `./tests` (or improve existing ones).  
 4. **Run** all tests:
    ```bash
    python -m unittest discover -s tests
    ```
-5. **Propose** new features, fix bugs, or suggest improvements via pull requests.  
+5. **Submit** pull requests to propose features, fix bugs, or enhance documentation.
 
-Areas that could use your creativity:
-- Novel output plugins (like CSV, or an interactive web-based view).
-- Additional metadata plugins (e.g., code complexity metrics).
-- Performance optimizations for scanning huge projects.
-- Deeper documentation or refined user interfaces.
+**Potential Contribution Areas**:
+
+- Additional output plugins (like CSV or a dynamic web viewer).  
+- More advanced metadata plugins (code complexity, language detection, etc.).  
+- Performance tweaks for scanning large repos.  
+- Polishing the user experience (tool tips, CLI help, better error messages).
 
 <br>
 
 ---
 
+
 ## License
 
-SingleFile is released under the [MIT License](LICENSE).  
-Feel free to modify and integrate it into your own solutions—credit is always appreciated but not required.
-
-We hope SingleFile transforms how you package and analyze your code. Thanks for exploring and contributing—enjoy the benefits of a streamlined, powerful flattening process!  
-
-*Happy coding!*
+SingleFile is released under the [MIT License](LICENSE). Feel free to adapt it into your own pipelines or products—credit is greatly appreciated but not mandatory.
