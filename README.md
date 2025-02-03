@@ -3,11 +3,11 @@
 
 # SingleFile
 
-SingleFile is a **codebase flattening and analysis** tool designed to unify multiple files and directories into comprehensive, metadata-rich outputs. Whether you need a simple text flatten for a single folder or an in-depth, multi-output, metadata-filled output for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
+**SingleFile** **allows you to transform your codebase into LLM-friendly formats directly from commandline**. It is a robust **codebase flattening tool** designed to unify multiple files and directories into comprehensive, metadata-rich outputs. Whether you need a simple text flatten for a single folder or an in-depth, multi-output, metadata-filled output for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
 
 - **No External Dependencies**: Built exclusively on the Python Standard Library.  
 - **Config-Driven**: Merge a JSON config file with CLI arguments for reproducible setups.  
-- **Pluggable**: Add your own output/metadata plugins for specialized needs.  
+- **Pluggable**: Add your own output and metadata plugins for specialized needs.  
 
 <br>
 
