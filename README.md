@@ -464,9 +464,9 @@ https://github.com/chrisdreid/single-file-vsix
 A **Visual Studio Code extension** for SingleFile is in the works. Expect features like:
 
 - **One-Click Flattening**: Quickly consolidate your codebase within the editor.  
-- **Inline Configuration**: Configure paths, formats, and metadata in VS Code.  
-- **Real-Time Feedback**: Warnings, errors, and logs appear in the status bar/log panel.  
-- **Auto-Preview**: Open or preview your flattened output directly in an editor pane.
+- **Configuration**: Configure paths, formats, and metadata in VS Code.  
+- **Build and Save Configs**: Save configurations directly in VSCode.  
+- **Custom UI**: Full control over commands you are sending with integrated dialog.
 
 Stay tuned for announcements and early previews on the extension’s functionality!
 
