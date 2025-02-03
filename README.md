@@ -1,9 +1,12 @@
+Below is an **updated `README.md`** that aligns with your **renamed commands (`single-file`)**, **restores** details about the **two-phase CLI** and **mermaid diagram** example, and keeps the **new** sections/examples you provided.
+
+---
 
 ![Banner](./images/banner.png)
 
 # SingleFile
 
-SingleFile is a **codebase flattening and analysis** tool designed to unify multiple files and directories into comprehensive, metadata-rich outputs. Whether you need a simple text flatten for a single folder or an in-depth, multi-output metadata filled output for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
+SingleFile is a **codebase flattening and analysis** tool designed to unify multiple files and directories into comprehensive, metadata-rich outputs. Whether you need a simple text flatten for a single folder or an in-depth, multi-output, metadata-filled output for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
 
 - **No External Dependencies**: Built exclusively on the Python Standard Library.  
 - **Config-Driven**: Merge a JSON config file with CLI arguments for reproducible setups.  
@@ -14,7 +17,7 @@ SingleFile is a **codebase flattening and analysis** tool designed to unify mult
 ---
 ## Acknowledgments
 
-Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for his original work on [flatten-codebase](https://github.com/VictorHenrique317/flatten-codebase.git). SingleFile drew inspiration from flatten-codebase; And used flatten-codebase extensively to build this and many tools.
+Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for his original work on [flatten-codebase](https://github.com/VictorHenrique317/flatten-codebase.git). SingleFile drew inspiration from flatten-codebase and used it extensively to build this and many related tools.
 
 <br>
 
@@ -27,22 +30,23 @@ Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for
    - [Windows](#windows)  
    - [Using Pyenv](#using-pyenv)  
 3. [Environment Variables](#environment-variables)  
-4. [Basic Usage](#basic-usage)  
+4. [Technical Workflow (Two-Phase CLI)](#technical-workflow-two-phase-cli)  
+5. [Basic Usage](#basic-usage)  
    - [A Minimal One-Liner](#a-minimal-one-liner)  
    - [Simple Example with Defaults](#simple-example-with-defaults)  
-5. [Intermediate Examples](#intermediate-examples)  
+6. [Intermediate Examples](#intermediate-examples)  
    - [Filtering and Custom Metadata](#filtering-and-custom-metadata)  
    - [Using a JSON Config](#using-a-json-config)  
-6. [Advanced Examples](#advanced-examples)  
+7. [Advanced Examples](#advanced-examples)  
    - [Multiple Outputs](#multiple-outputs)  
    - [Querying Available Plugins and Configs](#querying-available-plugins-and-configs)  
+   - [Mermaid Diagram Example](#mermaid-diagram-example)  
    - [Running from Another Script](#running-from-another-script)  
-7. [Plugin Architecture](#plugin-architecture)  
+8. [Plugin Architecture](#plugin-architecture)  
    - [Output Plugins](#output-plugins)  
    - [Metadata Plugins](#metadata-plugins)  
-8. [VS Code Extension (Coming Soon)](#vs-code-extension-coming-soon)  
-9. [Contributing & Development](#contributing--development)  
-10. [Acknowledgments](#acknowledgments)  
+9. [VS Code Extension (Coming Soon)](#vs-code-extension-coming-soon)  
+10. [Contributing & Development](#contributing--development)  
 11. [License](#license)  
 
 <br>
@@ -55,9 +59,9 @@ Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for
 - **Multiple Output Formats**: Text (`default`), Markdown, and JSON included. Write your own plugin for HTML, CSV, etc.  
 - **Rich Metadata**: Default fields like file size, modified date, or extension. Add custom metadata—e.g., MD5 checksums or base64 binary content—through plugins.  
 - **Powerful Filtering**: Use regex to include/exclude directories, files, or extensions.  
-- **Two-Phase CLI**: 
-  1. Global arguments (like `--config` and `--disable-plugin`)  
-  2. Final pass merges JSON config + plugin-specific flags  
+- **Two-Phase CLI**:
+  1. **Phase 1** loads global arguments (like `--config` and `--disable-plugin`).  
+  2. **Phase 2** merges your JSON config + plugin-specific flags into the final set of arguments.  
 - **Zero Dependencies**: Only Python’s Standard Library—no extra pip installs or environment constraints.  
 
 <br>
@@ -148,7 +152,45 @@ single-file --query configs
 
 ---
 
+## Technical Workflow (Two-Phase CLI)
+
+SingleFile processes its arguments in **two phases**. A quick overview using **Mermaid**:
+
+```mermaid
+flowchart TB
+    A[Start CLI] --> B((Phase 1))
+    B --> C[Parse global args<br/>(--config,<br/>--disable-plugin,<br/>--query,<br/>...)]
+    C --> D[Load JSON config (optional)]
+    D --> E[Discover and disable<br/>plugins if specified]
+    E --> F((Phase 2))
+    F --> G[Parse plugin-specific args<br/>& merge final config]
+    G --> H[Create CodebaseAnalyzer<br/>and generate outputs]
+    H --> I[Done]
+```
+
+**Key Points**:
+- **Phase 1** loads top-level flags and merges JSON config if provided.  
+- **Plugin Discovery**: SingleFile scans for available output/metadata plugins; any disabled plugins are skipped.  
+- **Phase 2** merges the config with final CLI flags (including plugin-specific ones like `--md-toc` or `--json-compact`).  
+- SingleFile then scans the codebase, collects metadata, and generates output(s).
+
+<br>
+
+---
+
 ## Basic Usage
+
+### A Minimal One-Liner
+
+Flatten everything in the current directory into a single text file named `output.txt`:
+
+```bash
+single-file
+```
+
+**Explanation**:
+- Defaults to scanning `.`  
+- Uses `--output-file` default of `output`, which the text plugin interprets as `output.txt`  
 
 ### Simple Example with Defaults
 
@@ -159,8 +201,8 @@ single-file \
 ```
 
 - Scans `./src` recursively with no depth limit.
-- Creates a single text file: `my_project_flat.txt`.
-- **No** advanced filters are applied. All files are included (unless caught by default ignore patterns like `.git`).
+- Creates one text file: `my_project_flat.txt`.
+- **No** advanced filters are applied (default ignore patterns like `.git` still take effect).
 
 <br>
 
@@ -182,7 +224,7 @@ single-file \
 ```
 
 **What’s Happening**:
-- Scans `./my_app` up to **2 levels** deep.
+- Scans `./my_app` **2 levels** deep.
 - Excludes `.git` and `__pycache__` directories.
 - Only processes `.py` and `.md` files.
 - **Adds** MD5 checksums to each file’s metadata (`--metadata-add md5`).
@@ -191,9 +233,8 @@ single-file \
 
 ### Using a JSON Config
 
-You can store frequently used arguments in a JSON file, for instance `dev_rules.json`:
-
 ```json
+// dev_rules.json
 {
   "paths": ["./my_app"],
   "exclude_dirs": [".git", "__pycache__"],
@@ -203,14 +244,14 @@ You can store frequently used arguments in a JSON file, for instance `dev_rules.
 }
 ```
 
-Then invoke:
+Then run:
 
 ```bash
-single-file --config dev_rules.json --extensions py 
+single-file --config dev_rules.json --extensions py
 ```
-
-This updates the `dev_rules.json` config with any CLI overrides (`--extensions` in this example will only be 'py').  
-**Result**: A single Markdown file `my_app_flat.md` containing code blocks plus codebase statistics.
+- Merges settings from `dev_rules.json`.
+- CLI override sets `--extensions` to only `.py`.
+- Outputs `my_app_flat.md` with code blocks and stats (assuming you also use `--md-stats`).
 
 <br>
 
@@ -220,8 +261,6 @@ This updates the `dev_rules.json` config with any CLI overrides (`--extensions` 
 
 ### Multiple Outputs
 
-Generate both plain text **and** JSON outputs in one run:
-
 ```bash
 single-file \
   --paths ./my_app \
@@ -230,8 +269,8 @@ single-file \
   --ignore-errors
 ```
 
-- Produces `consolidated.txt` and `consolidated.json`.
-- If any permission or read errors occur, SingleFile will skip those entries instead of failing.
+- Generates `consolidated.txt` (default text plugin) and `consolidated.json` (JSON plugin).
+- **Ignore errors** means any unreadable/permission issues won't crash the process.
 
 ### Querying Available Plugins and Configs
 
@@ -240,14 +279,61 @@ single-file --query formats plugins metadata configs
 ```
 
 **Returns** (in JSON):
-- **formats**: All output plugins (with supported extensions, e.g., `.txt`, `.md`, `.json`).  
-- **plugins**: Lists both output and metadata plugin names + descriptions.  
-- **metadata**: Shows which fields are enabled by default, plus any plugin-specific fields (like `md5`, `binary_content`).
-- **configs**: Identifies known JSON config files found in `SINGLEFILE_CONFIG_PATH` or the local `configs/` folder.
+- **formats**: Known output formats (like `default`, `markdown`, `json`).  
+- **plugins**: Both output and metadata plugins with descriptions.  
+- **metadata**: Default fields and plugin-provided ones (like `md5`, `binary_content`).  
+- **configs**: Any config files discovered in `SINGLEFILE_CONFIG_PATH` or `configs/` folder.
+
+### Mermaid Diagram Example
+
+Want a **visual** representation of your directory tree via [Mermaid](https://mermaid-js.github.io/mermaid/)? Create a **custom output** plugin (simplified example):
+
+```python
+# single-file/plugins/outputs/mermaid_output.py
+
+from single_file.core import OutputPlugin
+from pathlib import Path
+
+class MermaidOutputPlugin(OutputPlugin):
+    format_name = "mermaid"
+    supported_extensions = [".md"]  # store in a markdown file
+
+    def generate_output(self, output_path: Path) -> None:
+        lines = []
+        lines.append("```mermaid")
+        lines.append("flowchart TB")
+
+        def walk_tree(node, parent_id=None):
+            label = node.get("dirpath") or node.get("filepath")
+            node_type = node.get("type", "file")
+            safe_id = label.replace(".", "_").replace("/", "_")
+            lines.append(f'{safe_id}["{label} ({node_type})"]')
+
+            if parent_id:
+                lines.append(f"{parent_id} --> {safe_id}")
+
+            if node_type == "directory" and 'children' in node:
+                for child in node['children']:
+                    walk_tree(child, safe_id)
+
+        walk_tree(self.analyzer.file_tree)
+        lines.append("```")
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        
+        self.analyzer.logger.info(f"Mermaid diagram generated at {output_path}")
+```
+
+Then:
+
+```bash
+single-file --formats mermaid --output-file diagram
+```
+
+You’ll get a `diagram.md` containing a Mermaid diagram block.
 
 ### Running from Another Script
-
-You can run SingleFile programmatically (as a subprocess) and parse its JSON output:
 
 ```python
 import subprocess, json
@@ -264,78 +350,49 @@ info = run_singlefile_query("formats")
 print("Available output plugins:", info["formats"])
 ```
 
-This approach is useful for dynamically building UI elements, gating logic on discovered plugins, or simply automating SingleFile in a larger pipeline.
-
 <br>
 
 ---
 
 ## Plugin Architecture
 
-SingleFile is highly extensible. Write your own output or metadata plugins to shape the final content to your exact needs.
+SingleFile is **highly extensible**. You can develop both output plugins (to control how flattened data is written) and metadata plugins (to add fields like checksums or binary data) without modifying the core.
 
 ### Output Plugins
 
-- **Default** (`default`, `.txt`): Basic text flatten with file markers.  
-- **Markdown** (`markdown`, `.md`): Adds code blocks, optional collapsible sections, and an auto-generated table of contents (`--md-toc`).  
-- **JSON** (`json`, `.json`): Produces a structured JSON object capturing directory trees, file metadata, and file contents (optional flags like `--json-no-content` remove the content field).  
+Built-in:
+- **Default** (`default`, `.txt`): Flatten with text markers around each file’s content.  
+- **Markdown** (`markdown`, `.md`): Collapsible sections, table of contents, syntax-highlighted code blocks, etc.  
+- **JSON** (`json`, `.json`): A structured JSON representation of your entire codebase.
 
-**To create a custom output plugin** (example: HTML):
-
-```python
-# single-file/plugins/outputs/html_output.py
-
-from single_file.core import OutputPlugin
-from pathlib import Path
-
-class HTMLOutputPlugin(OutputPlugin):
-    format_name = "html"
-    supported_extensions = [".html"]
-
-    def generate_output(self, output_path: Path) -> None:
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write("<html><body>\n")
-            f.write("<h1>Project Overview</h1>\n")
-            for file_info in self.analyzer.file_info_cache.values():
-                f.write(f"<h2>{file_info['filepath']}</h2>")
-                content = file_info.get("content", "")
-                f.write(f"<pre>{content}</pre>\n")
-            f.write("</body></html>\n")
-```
-
-Then run it:
-
-```bash
-single-file --formats html
-```
+**Creating Custom Outputs** is as easy as subclassing `OutputPlugin` and implementing `generate_output()`. See the [Mermaid Diagram Example](#mermaid-diagram-example) for a demonstration.
 
 ### Metadata Plugins
 
-- **MD5** (`md5`): Add an MD5 checksum to each file.  
-- **Binary Content** (`binary_content`): Base64-encodes binary files if forced.  
-- **File Size (Human-Readable)** (`filesize_human_readable`): E.g., `14.2 KB`.  
+Common built-ins:
+- **MD5** (`md5`): Adds an MD5 checksum for each file.  
+- **Binary Content** (`binary_content`): Base64-encode if the file is binary.  
+- **File Size (Human-Readable)** (`filesize_human_readable`): E.g., “14.2 KB”.
 
-**Create your own** by subclassing `MetadataPlugin`:
+**Create Your Own** by subclassing `MetadataPlugin`:
 
 ```python
-# single_file/plugins/metadata/example_plugin.py
+# single_file/plugins/metadata/myplugin.py
 from single_file.plugins.metadata.plugin_base import MetadataPlugin
 
-class ExamplePlugin(MetadataPlugin):
-    metadata_name = "example_field"
+class MyCustomPlugin(MetadataPlugin):
+    metadata_name = "my_field"
     default = False
-    description = "Stores a custom field named 'example_field'."
+    description = "Adds a custom field to each file."
 
     def attach_metadata(self, file_info: dict) -> None:
-        file_info["example_field"] = "Any custom data you want"
+        file_info["my_field"] = "Hello from the custom plugin!"
 ```
 
-Then enable it:
-
+Enable with:
 ```bash
-single-file --metadata-add example_field
+single-file --metadata-add my_field
 ```
-
 <br>
 
 ---
@@ -344,10 +401,10 @@ single-file --metadata-add example_field
 
 A **Visual Studio Code extension** for SingleFile is in the works. Expect features like:
 
-- **One-Click Flattening**: Consolidate your workspace’s files with minimal effort.  
-- **Inline Configuration**: Set paths, formats, and metadata plugins directly in VS Code.  
-- **Real-Time Feedback**: See notifications or errors in the VS Code status bar/log.  
-- **Auto-Preview**: Open or preview the flattened output in an integrated editor pane.  
+- **One-Click Flattening**: Quickly consolidate your codebase within the editor.  
+- **Inline Configuration**: Configure paths, formats, and metadata in VS Code.  
+- **Real-Time Feedback**: Warnings, errors, and logs appear in the status bar/log panel.  
+- **Auto-Preview**: Open or preview your flattened output directly in an editor pane.
 
 Stay tuned for announcements and early previews on the extension’s functionality!
 
@@ -357,32 +414,30 @@ Stay tuned for announcements and early previews on the extension’s functionali
 
 ## Contributing & Development
 
-Contributions are encouraged! Here’s how:
+Contributions are **encouraged**! Here’s how to get started:
 
 1. **Fork** or **clone** this repo.  
 2. **Install** in editable mode:
    ```bash
    pip install -e .
    ```
-3. **Write** new unit tests in `./tests` (or improve existing ones).  
-4. **Run** all tests:
+3. **Test** with:
    ```bash
    python -m unittest discover -s tests
    ```
-5. **Submit** pull requests to propose features, fix bugs, or enhance documentation.
+4. Submit **pull requests** to propose features, fix bugs, or enhance docs.
 
 **Potential Contribution Areas**:
-
-- Additional output plugins (like CSV or a dynamic web viewer).  
-- More advanced metadata plugins (code complexity, language detection, etc.).  
-- Performance tweaks for scanning large repos.  
-- Polishing the user experience (tool tips, CLI help, better error messages).
+- New output plugins (CSV, interactive web viewer, etc.)  
+- Advanced metadata plugins (code complexity, language detection)  
+- Performance optimizations for large codebases  
+- Improved user experience (better CLI error messages, advanced usage docs)
 
 <br>
 
 ---
 
-
 ## License
 
 SingleFile is released under the [MIT License](LICENSE). Feel free to adapt it into your own pipelines or products—credit is greatly appreciated but not mandatory.
+
