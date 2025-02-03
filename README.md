@@ -409,6 +409,52 @@ single-file --metadata-add my_field
 ```
 <br>
 
+
+**More Complex Metadata Example** :
+```python
+# single_file/plugins/metadata/sha256_metadata.py
+import hashlib
+import os
+import logging
+from single_file.plugins.metadata.plugin_base import MetadataPlugin
+
+logger = logging.getLogger(__name__)
+
+class SHA256MetadataPlugin(MetadataPlugin):
+    """
+    A metadata plugin that adds a SHA256 hash for each file.
+    """
+    metadata_name = "sha256"
+    default = False  # Not enabled unless explicitly requested
+    description = "SHA256 hash of the file's content."
+
+    def attach_metadata(self, file_info: dict) -> None:
+        # Check if this file has 'filepath' and not already flagged as binary-skip, etc.
+        # If it does, we can compute the SHA256 hash from disk.
+        base_path = self.analyzer.args.paths[0] if self.analyzer.args.paths else "."
+        rel_path = file_info.get("filepath", "")
+        if rel_path.startswith("./"):
+            rel_path = rel_path[2:]  # remove leading "./"
+
+        full_path = os.path.join(base_path, rel_path)
+
+        try:
+            with open(full_path, "rb") as f:
+                sha256 = hashlib.sha256()
+                for chunk in iter(lambda: f.read(4096), b""):
+                    sha256.update(chunk)
+            file_info["sha256"] = sha256.hexdigest()
+        except Exception as e:
+            logger.warning(f"Could not compute SHA256 for {full_path}: {e}")
+            # Fallback or skip hashing
+
+```
+
+Enable with:
+```bash
+single-file --metadata-add sha256
+```
+<br>
 ---
 
 ## VS Code Extension (Coming Soon)
