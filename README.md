@@ -459,6 +459,8 @@ single-file --metadata-add sha256
 
 ## VS Code Extension (Coming Soon)
 
+https://github.com/chrisdreid/single-file-vsix
+
 A **Visual Studio Code extension** for SingleFile is in the works. Expect features like:
 
 - **One-Click Flattening**: Quickly consolidate your codebase within the editor.  
