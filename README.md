@@ -3,7 +3,7 @@
 
 # SingleFile
 
-SingleFile is a **codebase flattening and analysis** tool designed to unify multiple files and directories into comprehensive, metadata-rich outputs. Whether you need a simple text flatten for a single folder or an in-depth, multi-output analysis for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
+SingleFile is a **codebase flattening and analysis** tool designed to unify multiple files and directories into comprehensive, metadata-rich outputs. Whether you need a simple text flatten for a single folder or an in-depth, multi-output metadata filled output for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
 
 - **No External Dependencies**: Built exclusively on the Python Standard Library.  
 - **Config-Driven**: Merge a JSON config file with CLI arguments for reproducible setups.  
@@ -70,8 +70,8 @@ Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/chrisdreid/single_file.git
-   cd single_file
+   git clone https://github.com/chrisdreid/single-file.git
+   cd single-file
    ```
 2. **Install** (editable mode recommended for development or plugin creation):
    ```bash
@@ -79,19 +79,19 @@ Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for
    ```
 3. **Test** the installation:
    ```bash
-   single_file --help
+   single-file --help
    ```
    or:
    ```bash
-   python -m single_file --help
+   python -m single-file --help
    ```
 
 ### Windows
 
 1. **Clone or download**:
    ```powershell
-   git clone https://github.com/chrisdreid/single_file.git
-   cd single_file
+   git clone https://github.com/chrisdreid/single-file.git
+   cd single-file
    ```
 2. **Install**:
    ```powershell
@@ -99,11 +99,11 @@ Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for
    ```
 3. **Check** everything:
    ```powershell
-   single_file --help
+   single-file --help
    ```
-   If `single_file` isn’t recognized, verify your Python scripts directory is on the `PATH`, or use:
+   If `single-file` isn’t recognized, verify your Python scripts directory is on the `PATH`, or use:
    ```powershell
-   python -m single_file --help
+   python -m single-file --help
    ```
 
 ### Using Pyenv
@@ -114,7 +114,7 @@ If you prefer isolating specific Python versions:
 pyenv install 3.10.5
 pyenv shell 3.10.5
 pip install -e .
-single_file --help
+single-file --help
 ```
 
 <br>
@@ -141,7 +141,7 @@ You can set the `SINGLEFILE_CONFIG_PATH` environment variable to point to one or
 To see which config files SingleFile finds, run:
 
 ```bash
-single_file --query configs
+single-file --query configs
 ```
 
 <br>
@@ -150,22 +150,10 @@ single_file --query configs
 
 ## Basic Usage
 
-### A Minimal One-Liner
-
-Flatten **everything** in the current directory (recursively) into a single default text file named `output.txt`:
-
-```bash
-single_file
-```
-
-Explanation:
-- Defaults to scanning `.`  
-- Produces `./output.txt` (because `--output-file` defaults to `output` and the default extension is `.txt`)  
-
 ### Simple Example with Defaults
 
 ```bash
-single_file \
+single-file \
   --paths ./src \
   --output-file my_project_flat.txt
 ```
@@ -183,7 +171,8 @@ single_file \
 ### Filtering and Custom Metadata
 
 ```bash
-single_file \
+single-file \
+  --output-file my-output.json \
   --paths ./my_app \
   --depth 2 \
   --exclude-dirs "^(\\.git|__pycache__)$" \
@@ -198,7 +187,7 @@ single_file \
 - Only processes `.py` and `.md` files.
 - **Adds** MD5 checksums to each file’s metadata (`--metadata-add md5`).
 - **Removes** default `size` and `modified` fields from output (`--metadata-remove size modified`).
-- Outputs a single file named `output.txt` (the default).
+- Outputs a single file named `my-output.json`.
 
 ### Using a JSON Config
 
@@ -217,10 +206,10 @@ You can store frequently used arguments in a JSON file, for instance `dev_rules.
 Then invoke:
 
 ```bash
-single_file --config dev_rules.json --md-stats
+single-file --config dev_rules.json --extensions py 
 ```
 
-This merges the `dev_rules.json` config with any CLI overrides (`--md-stats` in this example).  
+This updates the `dev_rules.json` config with any CLI overrides (`--extensions` in this example will only be 'py').  
 **Result**: A single Markdown file `my_app_flat.md` containing code blocks plus codebase statistics.
 
 <br>
@@ -234,7 +223,7 @@ This merges the `dev_rules.json` config with any CLI overrides (`--md-stats` in 
 Generate both plain text **and** JSON outputs in one run:
 
 ```bash
-single_file \
+single-file \
   --paths ./my_app \
   --formats default,json \
   --output-file consolidated \
@@ -247,7 +236,7 @@ single_file \
 ### Querying Available Plugins and Configs
 
 ```bash
-single_file --query formats plugins metadata configs
+single-file --query formats plugins metadata configs
 ```
 
 **Returns** (in JSON):
@@ -265,7 +254,7 @@ import subprocess, json
 
 def run_singlefile_query(what="formats"):
     result = subprocess.run(
-        ["single_file", "--query", what],
+        ["single-file", "--query", what],
         capture_output=True,
         text=True
     )
@@ -294,7 +283,7 @@ SingleFile is highly extensible. Write your own output or metadata plugins to sh
 **To create a custom output plugin** (example: HTML):
 
 ```python
-# single_file/plugins/outputs/html_output.py
+# single-file/plugins/outputs/html_output.py
 
 from single_file.core import OutputPlugin
 from pathlib import Path
@@ -317,7 +306,7 @@ class HTMLOutputPlugin(OutputPlugin):
 Then run it:
 
 ```bash
-single_file --formats html
+single-file --formats html
 ```
 
 ### Metadata Plugins
@@ -344,7 +333,7 @@ class ExamplePlugin(MetadataPlugin):
 Then enable it:
 
 ```bash
-single_file --metadata-add example_field
+single-file --metadata-add example_field
 ```
 
 <br>
