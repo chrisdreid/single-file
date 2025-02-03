@@ -11,6 +11,11 @@ It is a robust codebase flattening tool designed to unify multiple files and dir
 - **Config-Driven**: Merge a JSON config file with CLI arguments for reproducible setups.  
 - **Pluggable**: Add your own output and metadata plugins for specialized needs.  
 
+### LLM Tuned - Smart Context Preservation
+- Automatically maintains crucial relationships between files and dependencies.
+- Preserves import hierarchies and module structures.
+- Includes relevant metadata and hints that help LLMs understand your code better.
+<br>
 <br>
 
 ---
