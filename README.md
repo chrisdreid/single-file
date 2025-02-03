@@ -60,7 +60,7 @@ We believe in providing a lean, self-contained solution that’s easy to integra
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/YourUserName/single_file.git
+   git clone https://github.com/chrisdreid/single_file.git
    cd single_file
    ```
 2. **Install** in editable mode (recommended for development or plugin creation):
@@ -80,7 +80,7 @@ We believe in providing a lean, self-contained solution that’s easy to integra
 
 1. **Clone or download** the repository:
    ```powershell
-   git clone https://github.com/YourUserName/single_file.git
+   git clone https://github.com/chrisdreid/single_file.git
    cd single_file
    ```
 2. **Install**:
