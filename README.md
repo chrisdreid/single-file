@@ -14,7 +14,7 @@ SingleFile is a **codebase flattening and analysis** tool designed to unify mult
 ---
 ## Acknowledgments
 
-Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for his original work on [flatten-codebase](https://github.com/VictorHenrique317/flatten-codebase.git). SingleFile drew inspiration from flatten-codebase and used it extensively to build this and many related tools.
+Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for his original work on [flatten-codebase](https://github.com/VictorHenrique317/flatten-codebase.git). SingleFile drew inspiration from flatten-codebase and used it extensively to build this and many other tools.
 
 <br>
 
@@ -48,20 +48,28 @@ Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for
 
 <br>
 
+
 ---
-
 ## Key Features
-
-- **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux.  
-- **Multiple Output Formats**: Text (`default`), Markdown, and JSON included. Write your own plugin for HTML, CSV, etc.  
-- **Rich Metadata**: Default fields like file size, modified date, or extension. Add custom metadata—e.g., MD5 checksums or base64 binary content—through plugins.  
-- **Powerful Filtering**: Use regex to include/exclude directories, files, or extensions.  
+- **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux.
+- **Multiple Output Formats**: Built-in support for text (Default), Markdown, and JSON, with the option to create your own output plugins (HTML, CSV, or anything else).
+- **Rich Metadata**: Choose from defaults like file size, modification timestamps, or line counts. Extend with MD5 checksums, base64-encoded binary data, or your own custom calculations.
+- **Selective Inclusion/Exclusion**: Filter directories, file names, or file extensions with regex patterns for precise scanning.
+- **Config-Driven**: Merge a JSON config file with CLI arguments—ideal for reproducible, team-shared workflows.
 - **Two-Phase CLI**:
-  1. **Phase 1** loads global arguments (like `--config` and `--disable-plugin`).  
-  2. **Phase 2** merges your JSON config + plugin-specific flags into the final set of arguments.  
-- **Zero Dependencies**: Only Python’s Standard Library—no extra pip installs or environment constraints.  
+- - **Phase 1** loads global arguments (like `--config` and `--disable-plugin`)
+- - **Phase 2** merges your configurations and plugin-specific flags.
+- **Error Handling**: Ignore problematic paths or fail early—your choice.
 
+**No External Dependencies**  
+SingleFile is proudly built using only the Python Standard Library—no additional third-party packages. This minimalistic approach ensures:
+1. **Zero Hassle Installation**: No extra libraries to install or maintain.  
+2. **Reduced Conflicts**: Fewer version and compatibility issues.  
+3. **Portable and Lightweight**: Straightforward to run on any system with Python 3 installed.  
+
+We believe in providing a lean, self-contained solution that’s easy to integrate into diverse environments.
 <br>
+
 
 ---
 
@@ -155,20 +163,25 @@ SingleFile processes its arguments in **two phases**. A quick overview using **M
 
 ```mermaid
 flowchart TB
-    A[Phase 1: Parse CLI & Config] --> B[Merge Config & CLI Args]
-    B --> C["Discover Plugins (Output & Metadata)"]
-    C --> D[Initialize Analyzer & Build Metadata Config]
-    D --> E["Gather All Files (for each path)"]
-    E --> F[Check Depth & Directory Filters]
-    F --> G{Directory?}
-    G -- Yes --> H["Recurse into Subdirectories (subject to depth)"]
-    G -- No --> I["Check File Filters (regex, extensions, etc.)"]
-    H --> I
-    I --> J[If included, read file content & attach built-in metadata]
-    J --> K[Attach metadata plugins as needed]
-    K --> L[Store file info in memory cache]
-    L --> M[After scanning all paths, generate outputs]
-    M --> N["Write Flattened Files (JSON, MD, etc.)"]
+    A[Start CLI: single-file <args>] --> B["Phase 1: Parse global CLI flags<br/>(--config, --disable-plugin, --query, etc.)"]
+    B --> C["Load & parse JSON config<br/>(if --config provided)"]
+    C --> D["Merge config with global CLI flags<br/>(CLI overrides config where conflicts)"]
+    D --> E["Discover plugins (metadata & output)<br/>(disable if specified)"]
+    E --> F["Phase 2: Parse plugin-specific flags<br/>(e.g. --md-toc, --json-compact)"]
+    F --> G["Combine plugin-specific flags < config < global CLI<br/>(most specific setting wins)"]
+    G --> H["Initialize CodebaseAnalyzer<br/>with merged arguments"]
+    H --> I["Gather All Files (for each path)"]
+    I --> J["Check Depth & Directory Filters"]
+    J --> K{Directory?}
+    K -- Yes --> L["Recurse Subdirectories<br/>(subject to depth)"]
+    K -- No --> M["Check File Filters<br/>(regex, extensions, etc.)"]
+    L --> M
+    M --> N["If included, read file content<br/>+ attach built-in metadata"]
+    N --> O["Attach Metadata Plugins<br/>(sha256, md5, etc.)"]
+    O --> P["Store file info in memory cache"]
+    P --> Q["After scanning all paths,<br/>generate outputs"]
+    Q --> R["Write Flattened Files<br/>(JSON, MD, etc.)"]
+    R --> S[Done]
 ```
 
 **Key Points**:
@@ -287,54 +300,64 @@ single-file --query formats plugins metadata configs
 - **metadata**: Default fields and plugin-provided ones (like `md5`, `binary_content`).  
 - **configs**: Any config files discovered in `SINGLEFILE_CONFIG_PATH` or `configs/` folder.
 
-### Mermaid Diagram Example
+### HTML Example Plugin
 
-Want a **visual** representation of your directory tree via [Mermaid](https://mermaid-js.github.io/mermaid/)? Create a **custom output** plugin (simplified example):
+Want a **visual** representation of your directory tree via HTML? Create a **custom output** plugin (simplified example):
 
 ```python
-# single-file/plugins/outputs/mermaid_output.py
-
+# single-file/plugins/outputs/html_output.py
 from single_file.core import OutputPlugin
 from pathlib import Path
 
-class MermaidOutputPlugin(OutputPlugin):
-    format_name = "mermaid"
-    supported_extensions = [".md"]  # store in a markdown file
+class HTMLOutputPlugin(OutputPlugin):
+    """
+    A minimal HTML output plugin for SingleFile.
+    Creates a basic HTML page listing files and their content (if included).
+    """
+    format_name = "html"
+    supported_extensions = [".html"]
 
     def generate_output(self, output_path: Path) -> None:
-        lines = []
-        lines.append("```mermaid")
-        lines.append("flowchart TB")
+        """
+        Generates an HTML document listing each file path and the file content in <pre> tags.
+        """
+        try:
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write("<!DOCTYPE html>\n<html>\n<head>\n")
+                f.write("<meta charset='UTF-8'/>\n")
+                f.write("<title>SingleFile HTML Output</title>\n")
+                f.write("</head>\n<body>\n")
 
-        def walk_tree(node, parent_id=None):
-            label = node.get("dirpath") or node.get("filepath")
-            node_type = node.get("type", "file")
-            safe_id = label.replace(".", "_").replace("/", "_")
-            lines.append(f'{safe_id}["{label} ({node_type})"]')
+                f.write("<h1>Project Overview</h1>\n")
+                f.write("<ul>\n")
 
-            if parent_id:
-                lines.append(f"{parent_id} --> {safe_id}")
+                # Loop through each file we've collected
+                for file_info in self.analyzer.file_info_cache.values():
+                    filepath = file_info.get("filepath", "unknown")
+                    f.write(f"<li><strong>{filepath}</strong></li>\n")
 
-            if node_type == "directory" and 'children' in node:
-                for child in node['children']:
-                    walk_tree(child, safe_id)
+                    # If content is present (and not a skipped binary)
+                    content = file_info.get("content", "")
+                    f.write("<pre style='border:1px solid #ccc; padding:10px;'>")
+                    f.write(content)
+                    f.write("</pre>\n")
 
-        walk_tree(self.analyzer.file_tree)
-        lines.append("```")
+                f.write("</ul>\n</body>\n</html>\n")
 
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
-        
-        self.analyzer.logger.info(f"Mermaid diagram generated at {output_path}")
+            self.analyzer.logger.info(f"HTML output generated at {output_path}")
+
+        except Exception as e:
+            self.analyzer.logger.error(f"Failed to generate HTML output: {e}")
+            raise
 ```
 
 Then:
 
 ```bash
-single-file --formats mermaid --output-file diagram
+single-file --formats html --output-file my-output.html
 ```
 
-You’ll get a `diagram.md` containing a Mermaid diagram block.
+You’ll get a `my-output.html` containing HTML formatted files. From here you can play with it and add metadata or styles as you like.
 
 ### Running from Another Script
 
@@ -368,7 +391,7 @@ Built-in:
 - **Markdown** (`markdown`, `.md`): Collapsible sections, table of contents, syntax-highlighted code blocks, etc.  
 - **JSON** (`json`, `.json`): A structured JSON representation of your entire codebase.
 
-**Creating Custom Outputs** is as easy as subclassing `OutputPlugin` and implementing `generate_output()`. See the [Mermaid Diagram Example](#mermaid-diagram-example) for a demonstration.
+**Creating Custom Outputs** is as easy as subclassing `OutputPlugin` and implementing `generate_output()`. See the [HTML Example Plugin](#HTMLExamplePlugin) for a demonstration.
 
 ### Metadata Plugins
 
