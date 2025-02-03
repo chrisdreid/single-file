@@ -196,18 +196,6 @@ flowchart TB
 
 ## Basic Usage
 
-### A Minimal One-Liner
-
-Flatten everything in the current directory into a single text file named `output.txt`:
-
-```bash
-single-file
-```
-
-**Explanation**:
-- Defaults to scanning `.`  
-- Uses `--output-file` default of `output`, which the text plugin interprets as `output.txt`  
-
 ### Simple Example with Defaults
 
 ```bash
