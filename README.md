@@ -1,9 +1,9 @@
 
 ![Banner](./images/banner.png)
 
-# SingleFile
+# Single-File
 
-**Transform Your Entire Codebase for Optimal LLM Comprehension and Output**. With a robust feature set, you have full control over the flattening and the ability to enrich your code with crucial metadata, **single-file** creates outputs that dramatically improve LLM comprehension and response quality.
+**Transform Your Entire Codebase for Optimal LLM Comprehension and Output**. With a robust feature set, you have full control over the flattening and the ability to enrich your code with crucial metadata. **Single-File** creates outputs that dramatically improve LLM comprehension and response quality.
 
 It is a robust codebase flattening tool designed to unify multiple files and directories into comprehensive, metadata-rich outputs that gives you the control of what your LLM can see. Whether you need simple text flatten for a single folder or an in-depth, multi-output, metadata-filled output for AI ingestion, SingleFile’s modular architecture can adapt to your exact requirements.
 
