@@ -1,6 +1,3 @@
-Below is an **updated `README.md`** that aligns with your **renamed commands (`single-file`)**, **restores** details about the **two-phase CLI** and **mermaid diagram** example, and keeps the **new** sections/examples you provided.
-
----
 
 ![Banner](./images/banner.png)
 
@@ -158,14 +155,20 @@ SingleFile processes its arguments in **two phases**. A quick overview using **M
 
 ```mermaid
 flowchart TB
-    A[Start CLI] --> B((Phase 1))
-    B --> C[Parse global args<br/>(--config,<br/>--disable-plugin,<br/>--query,<br/>...)]
-    C --> D[Load JSON config (optional)]
-    D --> E[Discover and disable<br/>plugins if specified]
-    E --> F((Phase 2))
-    F --> G[Parse plugin-specific args<br/>& merge final config]
-    G --> H[Create CodebaseAnalyzer<br/>and generate outputs]
-    H --> I[Done]
+    A[Phase 1: Parse CLI & Config] --> B[Merge Config & CLI Args]
+    B --> C["Discover Plugins (Output & Metadata)"]
+    C --> D[Initialize Analyzer & Build Metadata Config]
+    D --> E["Gather All Files (for each path)"]
+    E --> F[Check Depth & Directory Filters]
+    F --> G{Directory?}
+    G -- Yes --> H["Recurse into Subdirectories (subject to depth)"]
+    G -- No --> I["Check File Filters (regex, extensions, etc.)"]
+    H --> I
+    I --> J[If included, read file content & attach built-in metadata]
+    J --> K[Attach metadata plugins as needed]
+    K --> L[Store file info in memory cache]
+    L --> M[After scanning all paths, generate outputs]
+    M --> N["Write Flattened Files (JSON, MD, etc.)"]
 ```
 
 **Key Points**:
