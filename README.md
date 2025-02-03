@@ -354,7 +354,7 @@ import subprocess, json
 
 def run_singlefile_query(what="formats"):
     result = subprocess.run(
-        ["single-file", "--query", what],
+        ["python", "single-file", "--query", what],
         capture_output=True,
         text=True
     )
