@@ -508,5 +508,11 @@ Contributions are **encouraged**! Here’s how to get started:
 
 ## License
 
-SingleFile is released under the [MIT License](LICENSE). Feel free to adapt it into your own pipelines or products—credit is greatly appreciated but not mandatory.
+SingleFile is released under the [MIT License](LICENSE). 
+Permission is granted to use, modify and distribute this software, provided:
+1. The above copyright notice is included
+2. Attribution to the original author is maintained
+3. A link to https://github.com/chrisdreid/single-file/edit/main/README.md is maintained
+
+See the [LICENSE](LICENSE) file for full terms.
 
