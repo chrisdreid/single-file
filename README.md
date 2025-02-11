@@ -19,6 +19,26 @@ It is a robust codebase flattening tool designed to unify multiple files and dir
 <br>
 
 ---
+
+## VS Code Extension
+
+[github:single-file-vsix](https://github.com/chrisdreid/single-file-vsix)<br>
+[Code2LLM](https://marketplace.visualstudio.com/items?itemName=corsum.code2llm)
+
+A **Visual Studio Code extension** for SingleFile.
+
+Features
+- Global Defaults: Configure your Single-File path, optional Pyenv version, and any additional config root paths.
+- Run Dialog: Right-click folders/files (or use the command palette) to open a Run panel where you can:
+- Adjust arguments like paths, output, formats, configs and more.
+- Quickly Export these arguments as a reusable JSON config.
+- Sticky Workspace Settings: The last used arguments are saved per-project so you don’t have to re-enter them.
+- Auto-Configuration Prompt: If you haven’t set up Single-File yet, the extension will prompt you to configure it globally on first use.
+- Run “Last Settings”: Quickly re-run Single-File with your most recent arguments—no dialog required.
+
+<br>
+
+---
 ## Acknowledgments
 
 Special thanks to [@VictorHenrique317](https://github.com/VictorHenrique317) for his original work on [flatten-codebase](https://github.com/VictorHenrique317/flatten-codebase.git). SingleFile drew inspiration from flatten-codebase and used it extensively to build this and many other tools.
@@ -461,22 +481,6 @@ Enable with:
 ```bash
 single-file --metadata-add sha256
 ```
-<br>
----
-
-## VS Code Extension (Coming Soon)
-
-https://github.com/chrisdreid/single-file-vsix
-
-A **Visual Studio Code extension** for SingleFile is in the works. Expect features like:
-
-- **One-Click Flattening**: Quickly consolidate your codebase within the editor.  
-- **Configuration**: Configure paths, formats, and metadata in VS Code.  
-- **Build and Save Configs**: Save configurations directly in VSCode.  
-- **Custom UI**: Full control over commands you are sending with integrated dialog.
-
-Stay tuned for announcements and early previews on the extension’s functionality!
-
 <br>
 
 ---
